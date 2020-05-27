@@ -623,20 +623,20 @@ theme_new <- theme_bw() +
         axis.line=element_line(colour="black"),
         strip.background = element_rect(color = "white", fill = "white"),
         panel.grid = element_blank())
-```
 
-```{r}
 models <- c('model1', 'model2','model3', 'model4','model5')
 expDat <- list(dat_exp1, dat_exp2, dat_exp3)
 #load the data and remove the outliers
-par_GLM_observed <-read.csv('../data/par_observed.csv') %>% filter(!((NSub == 10|NSub == 6 ) & (cond == 'AF'| cond =='DF')))%>% filter(!((NSub == 1) & (cond == 'PS'| cond =='NS')))
+
+par_observed <- rbind(rbind(par_exp1, par_exp2), par_exp3)
+par_observed <- par_observed %>% filter(!((NSub == 10|NSub == 6 ) & (cond == 'AF'| cond =='DF')))%>% filter(!((NSub == 1) & (cond == 'PS'| cond =='NS')))
 modelresults<- read.csv("../data/modelresults.csv")  %>% filter(!((NSub == 10|NSub == 6) & (cond == 'AF'| cond =='DF')))%>% filter(!((NSub == 1) & (cond == 'PS'| cond =='NS')))
 ```
 
 ```{r}
 displayModellist <- c("Bisection Model",  "Spacing Model", "Ensemble Mean",  "Two-stage Ensemble Mean", "EDA")
 #combine oberserved and predicated PSEs and JNDs
-par_comb = left_join(modelresults, par_GLM_observed, by = c('NSub', 'cond')) 
+par_comb = left_join(modelresults, par_observed, by = c('NSub', 'cond')) 
 par_comb$errpse <- par_comb$PSEmap-par_comb$pse
 par_comb$errjnd <- par_comb$JNDmap-par_comb$jnd
 par_comb$model = factor(par_comb$model, labels = displayModellist)
@@ -694,28 +694,29 @@ m_parcomb <- par_comb %>% dplyr::group_by(model, cond) %>%
                    PSEmap_se = sd(PSEmap)/sqrt(n-1), JNDmap_se = sd(JNDmap)/sqrt(n-1),
                    errpse_se =sd(errpse)/sqrt(n-1), errjnd_se =sd(errjnd)/sqrt(n-1)) 
 
-m_par_observed <- par_GLM_observed %>% dplyr::group_by(cond) %>%
+m_par_observed <- par_observed %>% dplyr::group_by(cond) %>%
   dplyr::summarise(mpse=mean(pse), mjnd= mean(jnd), n=n(), 
                    pse_se =sd(pse)/sqrt(n-1), jnd_se =sd(jnd)/sqrt(n-1)) 
 m_par_observed$mPSEmap<-m_par_observed$mpse 
 m_par_observed$mJNDmap<-m_par_observed$mjnd 
 
 m_parcomb2 <- arrange(transform(m_parcomb,
-                                cond=factor(cond,levels=c("PS","DF","U-shaped","NS","AF","I T-shaped"))),cond)
+             cond=factor(cond,levels=c("PS","DF","U-shaped","NS","AF","I T-shaped"))),cond)
 
 
-fig_estimation = ggplot(m_parcomb2, aes(x=mPSEmap, y=mJNDmap, color = model)) + 
+fig_estimation = ggplot(m_parcomb2, aes(x=mPSEmap, y=mJNDmap, color = model, shape = model)) + 
   geom_point(data =m_par_observed, aes(x = mpse, y =mjnd, size=2), width =2, shape =16, alpha = 0.5,  color = 'black') +
-  geom_point(data = par_comb, aes(x = pse, y =jnd), alpha = 0.25, color = 'lightgray') +
+  geom_point(data = par_comb, aes(x = pse, y =jnd), alpha = 0.25, color = 'lightgray', shape=16) +
   geom_point() +
   geom_errorbar(aes(ymax=mJNDmap+JNDmap_se, ymin=mJNDmap-JNDmap_se), size=0.6)+
   geom_errorbarh(aes(xmax=mPSEmap+PSEmap_se, xmin=mPSEmap-PSEmap_se),size=0.6)+
   ylab('Observed JNDs (ms)')+xlab('Observed PSEs (ms)') +
   scale_color_manual(values = cbp1) +
+  scale_shape_manual(values=c(0, 1, 2, 8, 16))+
   theme_new+ theme(legend.position = 'top') + 
   facet_wrap(.~cond,  ncol=3)+
   scale_size(guide = 'none')
-#+xlim(600,1200)+ylim(45,200)
+
 fig_estimation
 ```
 
