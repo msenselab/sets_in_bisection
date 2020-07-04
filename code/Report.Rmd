@@ -185,7 +185,33 @@ plot_pse_exp1 <- ggplot(mpars_exp1,aes(cond, m_pse, color = cond, fill = cond))+
 plot_pse_exp1
 ```
 
+```{r}
+plot_pse_exp1_box <- ggplot(par_exp1,aes(x=cond, y=pse, color = cond))+
+  geom_boxplot() + 
+  geom_jitter(position=position_jitter(0.2))+
+  geom_signif(comparisons=list(c("PS", "NS")), annotations="*", y_position = 1350, tip_length = 0, vjust=0.4, color = 'black') +
+  labs(x = " ", y = "Mean PSE (ms)") +
+  coord_cartesian(ylim = c(500,1400)) +
+  scale_color_manual(values = c('gray','black')) +
+  scale_fill_manual(values = c('gray','black')) +
+  theme(legend.position = "none")
+
+plot_pse_exp1_box
+```
+
 ## plot JND
+```{r}
+plot_jnd_exp1_box <- ggplot(par_exp1,aes(x=cond, y=jnd, color = cond))+
+  geom_boxplot() + 
+  geom_jitter(position=position_jitter(0.2))+
+  labs(x = " ", y = "Mean JND (ms)") +
+  coord_cartesian(ylim = c(80,380))+
+  scale_color_manual(values = c('gray','black')) +
+  scale_fill_manual(values = c('gray','black')) + theme(legend.position = "none")
+
+plot_jnd_exp1_box
+```
+
 ```{r}
 plot_jnd_exp1 <- ggplot(mpars_exp1,aes(cond, m_jnd, color = cond, fill = cond))+
   geom_bar(stat='identity') + 
@@ -347,6 +373,20 @@ plot_pse_exp2 <- ggplot(mpse_exp2,aes(cond, m_pse, color = cond, fill = cond))+
 plot_pse_exp2
 ```
 
+```{r}
+plot_pse_exp2_box <- ggplot(par_exp2,aes(x=cond, y=pse, color = cond))+
+  geom_boxplot() + 
+  geom_jitter(position=position_jitter(0.2))+
+  geom_signif(comparisons=list(c("DF", "AF")), annotations="***", y_position = 1450, tip_length = 0, vjust=0.4, color = 'black') +
+  labs(x = " ", y = "Mean PSE (ms)") +
+  coord_cartesian(ylim = c(500,1500))+
+  scale_color_manual(values = c('gray','black')) +
+  scale_fill_manual(values = c('gray','black')) +
+  theme(legend.position = "none")
+
+plot_pse_exp2_box
+```
+
 ## plot JND
 ```{r}
 plot_jnd_exp2 <- ggplot(mpse_exp2,aes(cond, m_jnd, color = cond, fill = cond))+
@@ -361,6 +401,21 @@ plot_jnd_exp2 <- ggplot(mpse_exp2,aes(cond, m_jnd, color = cond, fill = cond))+
 
 plot_jnd_exp2
 ```
+```{r}
+plot_jnd_exp2_box <- ggplot(par_exp2,aes(x=cond, y=jnd, color = cond))+
+  geom_boxplot() + 
+  geom_jitter(position=position_jitter(0.2)) +
+  geom_signif(comparisons=list(c("DF", "AF")), annotations="***", y_position = 310, tip_length = 0, vjust=0.4, color = 'black') +
+  labs(x = " ", y = "Mean JND (ms)") +
+  coord_cartesian(ylim = c(80,330))+
+  scale_color_manual(values = c('gray','black')) +
+  scale_fill_manual(values = c('gray','black')) +
+  theme(legend.position = "none")
+
+plot_jnd_exp2_box
+```
+
+
 
 
 
@@ -512,7 +567,18 @@ plot_pse_exp3 <- ggplot(mpars_exp3,aes(cond, m_pse, color = cond, fill = cond))+
   scale_fill_manual(values = c('gray','black')) +
   theme(legend.position = "none", legend.title = element_blank())
 plot_pse_exp3
+```
 
+```{r}
+plot_pse_exp3_box <- ggplot(par_exp3,aes(x=cond, y=pse, color = cond))+
+  geom_boxplot() + 
+  geom_jitter(position=position_jitter(0.2))+
+  coord_cartesian(ylim = c(500,1300)) +
+  labs(x = " ", y = "Mean PSE (ms)") +
+  scale_color_manual(values = c('gray','black')) +
+  scale_fill_manual(values = c('gray','black')) +
+  theme(legend.position = "none", legend.title = element_blank())
+plot_pse_exp3_box
 ```
 
 ## plot JND
@@ -527,6 +593,19 @@ plot_jnd_exp3 <- ggplot(mpars_exp3,aes(cond, m_jnd, color = cond, fill = cond))+
   scale_fill_manual(values = c('gray','black')) +
   theme(legend.position = "none")
 plot_jnd_exp3
+```
+
+```{r}
+plot_jnd_exp3_box <- ggplot(par_exp3,aes(x=cond, y=jnd, color = cond))+
+  geom_boxplot() + 
+  geom_jitter(position=position_jitter(0.2))+
+  coord_cartesian(ylim = c(0,400))+
+  geom_signif(comparisons=list(c("U-shaped", "I T-shaped")), annotations="***", y_position = 380, tip_length = 0, vjust=0.4, color = 'black') +
+  labs(x = " ", y = "Mean JND (ms)") +
+  scale_color_manual(values = c('gray','black')) +
+  scale_fill_manual(values = c('gray','black')) +
+  theme(legend.position = "none")
+plot_jnd_exp3_box
 ```
 
 
@@ -598,14 +677,29 @@ plot_grid(fig_exp1_sub1_dist2, fig_exp2_sub1_dist_2, fig_exp3_sub1_dist2,  ncol 
 plot_grid(plot_fit_exp1, plot_pse_exp1, plot_jnd_exp1,  nrow = 1, labels = c("A", "B", "C"), rel_widths = c(4,3,3))
 ```
 
+```{r}
+fig2 <- plot_grid(plot_fit_exp1, plot_pse_exp1_box, plot_jnd_exp1_box,  nrow = 1, labels = c("A", "B", "C"), rel_widths = c(4,3,3))
+ggsave("figures/fig2.png", fig2, width = 9, height = 4)
+```
+
 ## plot Figure 3 in manuscript
 ```{r}
 plot_grid(plot_fit_exp2, plot_pse_exp2, plot_jnd_exp2,  nrow = 1, labels = c("A", "B", "C"), rel_widths = c(4,3,3))
 ```
 
+```{r}
+fig3 <- plot_grid(plot_fit_exp2, plot_pse_exp2_box, plot_jnd_exp2_box,  nrow = 1, labels = c("A", "B", "C"), rel_widths = c(4,3,3))
+ggsave("figures/fig3.png", fig3, width = 9, height = 4)
+```
+
 ## plot Figure 4 in manuscript
 ```{r}
 plot_grid(plot_fit_exp3, plot_pse_exp3, plot_jnd_exp3,  nrow = 1, labels = c("A", "B", "C"), rel_widths = c(4,3,3))
+```
+
+```{r}
+fig4 <- plot_grid(plot_fit_exp3, plot_pse_exp3_box, plot_jnd_exp3_box,  nrow = 1, labels = c("A", "B", "C"), rel_widths = c(4,3,3))
+ggsave("figures/fig4.png", fig4, width = 9, height = 4)
 ```
 
 
