@@ -1,58 +1,60 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Name:          bisection_exp3.m
+%% Name:          bisection_exp3.m 
 %%
 %% Author:         Fiona Zhu
-%% Description:   Main function for running the bisection study 2 to
+%% Description:   Main function for running the bisection study to
 %% investigate the influence of ensemble variance on temporal bisection 
 %%
 %% note: 
-%% three types of sampled distributions will be tested: 
-%%       a uniform, a normal, and a U-shaped distribution 
-%% seven intervals: (400, 600, 800, 1000, 1200, 1400, and 1600 ms)
+%% two types of sampled distributions will be tested: 
+%%       a normal, and a U-shaped distribution 
+%% 8 intervals (400,  550, 700, 850, 1000, 1150, 1300, and 1450 ms)
+%% Two practice blocks : uniform distribution 
 %% Author: Xiuna Zhu (Fiona)
-%% Date: 27-12-2018
+%% Date: 22-1-2018
 %% Contact: fiona.zhu1230@gmail.com
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 function bisection_exp3
 % -------------------------------------
-% This is the code for bisection task to study2 with a U-shaped distribution
-%The U-shaped distribution has effectively parameters:
-% a= 0.4, b=1.6, 
-%gravitational balance center or offset :beta = (b+a)/2 =1
-%vertical scale alpha =12 /(b-a)^{3} =  6.94444...
-%	PDF =  alpha* (x-beta)^{2}
-% durations = [400.0, 600.0, 800.0, 1000.0, 1200.0, 1400.0, 1600.0]/1000;
-% weight = [1/7      1/7      1/7    1/7     1/7     1/7    1/7;  %uniformal
-%          4/56     7/56     10/56  14/56   10/56   7/56    4/56;  %normal
-%          12/56    9/56     6/56   2/56    6/56    9/56    12/56]; %U-shaped
+% This is the code for bisection task to study2 with a U-shaped
+% distribution and normal distribution
+% weight = [1/8      1/8    1/8      1/8     1/8     1/8     1/8      1/8;  %uniformal
+%          30/72    2/72    2/72     2/72    2/72    2/72    2/72    30/72;  %U-shaped
+%          2/72    2/72     2/72    30/72    30/72   2/72    2/72    2/72 ]; %normal
 %Participants have to identify the presented visual stimulus was close to the short or to the long
 % note:
 %--------------------------------------
 
 try
-    num_dur = 7;
-    num_dur_all = 1/2*num_dur*(num_dur+1); %28
-    blockTrials =num_dur_all*2; % number of trials per block 56
-    exp = CExp(2,[1 blockTrials],'blockRepetition', 2, 'blockFactors', 3);
+    close all;  clc;
+    num_dur = 8;
+    pracBlockNum = 2;
+    num_dur_all = 1/2*num_dur*(num_dur+1); %36
+    blockTrials =num_dur_all*2; % number of trials per block 72
+    exp = CExp(2,[1 blockTrials], 'blockRepetition', 2, 'blockFactors', 2);
     %1.    
     %2. duration 
-    %3. distribution: 1 = uniform; 2 = U-shaped; 3 = normal
+    %3. distribution: 1 = uniform; 2 = U-shaped; 3 = normal. 
+    
+    
+    idx = find(exp.seq(:,3)==1);
+    exp.seq(idx,3) = 3;
     
     frequency = 1000;
-    durations = [400.0, 600.0, 800.0, 1000.0, 1200.0, 1400.0, 1600.0]/1000;
+    durations = [400.0, 550.0, 700.0, 850.0, 1000.0, 1150.0, 1300.0, 1450.0]/1000;
     durList = ones(3, blockTrials);
 
     % parameters for uniform distribution
     for i = 1: num_dur
-        for g = 1 : 8
+        for g = 1 : blockTrials/num_dur
             j = i+(g-1)*num_dur;
             durList(1, j) = durations(i);  
         end 
     end
     
     % parameters for U-shaped distribution
-    weight_u = [12 9 6 2 6 9 12];
+    weight_u = [30 2 2 2 2 2 2 30];
     index = 0;
     for i = 1: num_dur
         for g = 1 : weight_u(i)
@@ -60,16 +62,11 @@ try
         end 
         index = index + weight_u(i);
     end
-    %currmean = sum(durations.*weight_u/56); %code to check if mean == 1
-     %[mu,s,muci,sci] = normfit(durList2,:)  %sigma = 0.4671
+    %currmean = sum(durations.*weight_u/blockTrials); %code to check if mean == 0.9250
+    %[mu,s,muci,sci] = normfit(durList(2,:)) %sigma = 0.4940
 
-    
-    
     % parameters for normal distribution
-    weight_nor = [4 7 10 14 10 7 4];
-%     currmean = sum(durations.*weight_nor/56); %code to check if mean == 1
-%     x_mean2 = (durations-currmean).^2;
-%     sigma = sqrt(sum(x_mean2.*weight_nor/56)); %sigma = 0.3251
+    weight_nor = [2 2 2 30 30 2 2 2];
     index = 0;
     for i = 1: num_dur
         for g = 1 : weight_nor(i)
@@ -77,47 +74,42 @@ try
         end 
         index = index + weight_nor(i);
     end
-    %[mu,s,muci,sci] = normfit(durList3,:)  %sigma = 0.3251
-    
-
-    %set the order
-    exp.seq = sortrows(exp.seq,-3); 
-   
-    
-%     % add uniform distribution at the end 
-%     exp.seq = [exp.seq; exp.seq(1:244,:)];
-%     exp.maxTrls = exp.maxTrls + 244;
+       %currmean = sum(durations.*weight_nor/blockTrials); %code to check if mean == 0.9250
+     %[mu,s,muci,sci] = normfit(durList(3,:)) %sigma = 0.1762
     
     
-    % new two practice blocks
-    prac_seq = exp.genTrials(2,[1 blockTrials], 1);
-    
-    % add 2 practice blocks' trials at beginning of part 1
-    exp.seq = [prac_seq(1:blockTrials*2,:); exp.seq];
-    exp.maxTrls = exp.maxTrls + blockTrials*2;
-    
-    
-    % enquire subject information
-    exp.subInfo();
+        
+   % enquire subject information
+    exp.subInfo('U: 1(y) or 2(N)?)', '1');
     if(strcmp(exp.sName, 'cancelled'))
         disp('This experiment has been cancelled!')
         return;
     end
     
+    %set the order
+    if(exp.sPara == 1)
+        exp.seq = sortrows(exp.seq, 3);  %first U-shaped distribution
+    else
+        exp.seq = sortrows(exp.seq, -3);  %first normal distribution
+    end
+   
+    
+    % new two practice blocks (uniform distribution)
+    prac_seq = exp.genTrials(2,[1 blockTrials], 1);
+    
+    % add 2 practice blocks' trials at beginning of part 1
+    exp.seq = [prac_seq(1:blockTrials*pracBlockNum,:); exp.seq];
+    exp.maxTrls = exp.maxTrls + blockTrials*pracBlockNum;
+    
     % input device
     kb=CInput('k',[0 1],{'leftArrow','rightArrow'});
     
     % audio device
-    %devices = PsychPortAudio('GetDevices' );
-    %Option1: Using the computer's default audio device
-    a = CAudio;
-    %Option2: Using the Motu's audio device
-    %a = CAudiom('hardware', 'Motu', 'channels',2); % 2 channels
-       
+    a = CAudio; 
     
     % visual display
     % v = CDisplay('bgColor',48,'fontSize',18, 'skipSync',1); % for test
-    v = CDisplay('bgColor',48,'fontSize',18,'monitorSize',22, 'fullWindow', 1);
+    v = CDisplay('bgColor',48,'fontSize',18,'monitorSize',22, 'fullWindow', 0);
     
     HideCursor;
     
@@ -130,7 +122,9 @@ try
     tone_mix = noise;  % 2*144000
     warning = a.genTone(4000,0.02); % a warning signal
     
-    v.dispText(infoText.instruction);
+    blockText = ['\n There are ' int2str(pracBlockNum) ' practice blocks, and '...
+    int2str(exp.maxTrls/blockTrials) ' blocks in total.\n\n'];
+    v.dispText([infoText.instruction, blockText, infoText.startBlock]);
     kb.wait;
     for iTrl=1:exp.maxTrls
         if (mod(iTrl, blockTrials) == 1) && (iTrl == 0.5 * exp.maxTrls + 1) % session info
@@ -166,17 +160,11 @@ try
         v.flip(1);
         %acquire response
         v.dispText(infoText.question);
-        initime = GetSecs;
-        [key, restime]= kb.response;
-        rt = restime-initime;
-        if iTrl <= blockTrials*2
+        key= kb.response;
+        if iTrl <= blockTrials*pracBlockNum
             % feedback
             feedbacktext = infoText.short;
-            if durList(cond(3), cond(2)) == durations((num_dur+1)/2)
-                if(rand() >= 0.5)
-                    feedbacktext = infoText.long;
-                end
-            elseif durList(cond(3), cond(2)) > durations((num_dur+1)/2)
+            if durList(cond(3), cond(2)) >= durations(floor(num_dur/2) +1)
                 feedbacktext = infoText.long;
             end
             v.dispText(feedbacktext);
@@ -199,7 +187,6 @@ try
             break;
         end
     end
-    
     
     %closing the experiment
     exp.saveData;   %save data
@@ -224,8 +211,8 @@ end
 function infoText = init_text
 % specify experimental text
 infoText.instruction = ['Duration Bisection Experiment \n Please follow the instruction the experimenter gave.\n',...
-    ' In this experiment, you will hear a tone or see a square. \nYour task is to judge if the stimuli presented is a short or long stimuli.\n', ...
-    ' You will learn what long or short is after few trials.'];
+    ' In this experiment, you will hear a noise after a tone . \nYour task is to judge if the noise is presented for a short or long time.\n', ...
+    ' During practice blocks, there is feedback telling you the right answer after each trial.'];
 infoText.practice = 'This is the practice block \n Press a key to begin';
 infoText.formalInfo = 'The formal experiment will start soon, \n please press a key to start\n';
 infoText.blockInfo = ['Please take a rest, and when you are ready, please press a key to start a new block. \n ', ...

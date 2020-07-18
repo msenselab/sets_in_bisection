@@ -3,8 +3,8 @@
 %% Name:          bisection_exp2.m
 %%
 %% Author:         Fiona Zhu
-%% Description:   Main function for running the bisection study 1 to
-%% investigate the distribution while keeping the spacing the same.
+%% Description:   Main function for running the bisection study to
+%% investigate the effect of mean of the distribution while keeping the spacing the same.
 %%
 %% note: 
 %%      seven intervals (400, 600, 800, 1000, 1200, 1400, and 1600 ms)
@@ -48,10 +48,20 @@ try
         %definition of Fi = i/(n+1); 
         Freq(i) = 2*i/(num_dur*(num_dur+1));
     end
-    %set frequency distribution A and B as two sessions  
-  %  exp.seq = sortrows(exp.seq,3); %'ascending (default)
-    exp.seq = sortrows(exp.seq, -3);  %descending  
 
+    % enquire subject information
+    exp.subInfo('session: AF(1) or DF(2)?)', '1');
+    if(strcmp(exp.sName, 'cancelled'))
+        disp('This experiment has been cancelled!')
+        return;
+    end
+    
+    %set the order
+    if(exp.sPara == 1)
+        exp.seq = sortrows(exp.seq, 3);  %A: ascending frequency condition firstly
+    else
+        exp.seq = sortrows(exp.seq, -3); %B: descending frequency condition firstly
+    end
     
     % new two practice blocks
     prac_seq = exp.genTrials(2,[1 num_dur_all], 2);
@@ -60,12 +70,6 @@ try
     exp.seq = [prac_seq(1:blockTrials*2,:); exp.seq];
     exp.maxTrls = exp.maxTrls + blockTrials*2;
     
-    % enquire subject information
-    exp.subInfo();
-    if(strcmp(exp.sName, 'cancelled'))
-        disp('This experiment has been cancelled!')
-        return;
-    end
     
     % input device
     kb=CInput('k',[0 1],{'leftArrow','rightArrow'});

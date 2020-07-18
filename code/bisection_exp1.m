@@ -2,9 +2,9 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Name:          bisection_exp1.m
 %%
-%% Author:        Fiona Zhu
-%% Description:   Main function for running the bisection study 1 to
-%% investigate the distribution while keeping the spacing the same.
+%% Author:         Fiona Zhu
+%% Description:   Main function for running the bisection study to
+%% investigate the spacing effect.
 %%
 %% note:
 %%      positive skew condition (400, 504, 636, 800, 1008, 1270, and 1600 ms)
@@ -19,7 +19,6 @@ function bisection_exp1
 % -------------------------------------
 % This is an example code for bisection task to study frequency distribution
 % Participants have to identify the presented visual stimulus was close to the short or to the long
-% note§:
 %--------------------------------------
 
 try
