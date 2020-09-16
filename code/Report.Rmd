@@ -1,90 +1,102 @@
 ---
-title: "Report"
+title: "Temporal bisection is influenced by ensemble statistics of the stimulus set (Data Analysis Report)"
 author: "Xiuna Zhu"
 date: "12 Februar 2019"
 output:
   pdf_document: default
+  html_notebook: default
+  html_document:
+    df_print: paged
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, eval = TRUE)
 source('dataana.R')
-library(rstan)
-options(mc.cores = parallel::detectCores())
-rstan_options (auto_write=TRUE)
 ```
 
-# Experiment 1 
 
-Two spacing condition will be tested in Experiment 1
+```{r}
+mDist <-  dat_all %>% dplyr::group_by(NSub, cond) %>%
+  summarise(m_cDur = mean(curDur), n = dplyr::n(),
+            sd_Dur = sd(curDur),
+            gm_Dur = gm_mean(curDur),
+            cDur_se = sd(curDur)/sqrt(n-1))
+mDist
+```
+
+
+
+# Experiment 1 
 
 positive skew condition (400, 504, 636, 800, 1008, 1270, and 1600 ms)
 
 negative skew condition (400, 730, 992, 1200, 1366, 1496, and 1600 ms)
 
-The arithmetic mean of set PS = 0.8883, geometric mean = 800, sd =  401; and arithmetic mean of set NS = 1.1120, geometric mean = 1018, sd =  402. 
-
 ## Range Frequency Theory
 
 To understand the pattern of results concerning schifts in the temporal bisection point, We have to check the distribution of stimuli within the sets firstly. 
-
-
 ```{r}
 sumfreq_exp1_sub1 <-  dat_exp1 %>% filter(NSub == 1) %>% group_by(cond, curDur) %>% summarise(count = n())
 count_exp1 <- sum(sumfreq_exp1_sub1$count)/2
 sumfreq_exp1_sub1$exp <- 'Exp1'
 sumfreq_exp1_sub1$freq <- sumfreq_exp1_sub1$count/count_exp1*100
+
+# rename columns
 fig_exp1_sub1_dist <- ggplot(data=sumfreq_exp1_sub1, aes(x=curDur, y=count, fill=cond)) +
   geom_bar(stat="identity", position=position_dodge()) +
+  #geom_smooth(method="loess",se = FALSE)+
   xlab('Durations (ms)') + ylab('Counts of trials for each participant') +
-   scale_x_continuous(breaks=seq(0, 1600, 200)) +
-    scale_color_manual(values = c('gray','black')) +
-    scale_fill_manual(values = c('gray','black')) +
-  mytheme
+  scale_x_continuous(breaks=seq(0, 1600, 200)) +
+  scale_color_manual(values = c('gray','black')) +
+  scale_fill_manual(values = c('gray','black')) +mytheme+ facet_wrap(~cond)
 
 fig_exp1_sub1_dist
 ```
-
 ## plot the distribution of stimulus set
 ```{r}
 mDist_exp1 <-  dat_exp1 %>% filter(NSub == 1) %>% dplyr::group_by(cond) %>%
-  dplyr::summarise(m_cDur = mean(curDur), n = dplyr::n(),
-            sd_Dur = sd(curDur),
-            gm_Dur = gm_mean(curDur))
+  summarise(m_cDur = mean(curDur), n = dplyr::n(),
+            cDur_se = sd(curDur)/sqrt(n-1))
 mDist_exp1
+```
+
+
+```{r}
+plot_mDist_exp1 <- ggplot(mDist_exp1,aes(cond, m_cDur, color = cond, fill = cond))+
+  geom_bar(stat='identity') +
+  geom_errorbar(aes(ymin = m_cDur - cDur_se, ymax = m_cDur + cDur_se), width =0.5) +
+  labs(x = " ", y = "Mean of Durations (ms)") +
+  scale_color_manual(values = c('gray','black')) +
+  scale_fill_manual(values = c('gray','black')) +
+  theme(legend.position = "none", legend.title = element_blank())+
+  theme(panel.grid.major=element_line(colour=NA))+
+  theme(axis.text.y = element_text(size=26,colour = "black"),
+        axis.text.x   = element_text(size=26, colour = "black"),
+        axis.title.y  = element_text(size=26, colour = "black"),
+        axis.title.x  = element_text(size=26, colour = "black"),
+        panel.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.line = element_line(colour = "black"))
+
+plot_mDist_exp1
 ```
 
 
 
 ## fit psychometric functions
 
-By default, quickpsy uses cummulative normal function, this can be shown by fits_exp$funname. With cummulative normal function, the second parameter p2 is the sigma, which defines JND as between 50%-84%. We use logistic function for calculating JND as 75%, so we need to specify this function in quickpsy. 
 
 ```{r fit psychometric functions Exp Spacing}
 fits_exp1 = quickpsy(dat_exp1, x = curDur, k =RP, prob = .5,
-                       grouping = .(cond, NSub), fun = logistic_fun,
-                       thresholds = FALSE)
+                     grouping = .(cond, NSub), thresholds = FALSE)
 head(fits_exp1$thresholds)
 ```
-```{r}
-par_exp1 <-fits_exp1$par %>%  dplyr::select(cond, NSub, parn, par) %>%
-  pivot_wider(names_from = parn, values_from = par) %>% 
-  mutate(jnd = log(3)/p2)
-par_exp1$pse <- par_exp1$p1
-par_exp1$p1 <-  NULL
-par_exp1$p2 <-  NULL
-head(par_exp1)
-```
-
-
-```{r, fig.cap= 'PSE: Bisection task in Experiment Spacing for each subject'}
-# plot fitted function
-plotcurves(fits_exp1) + theme_classic()
-```
 
 
 ```{r}
-fits_exp1_all = quickpsy(dat_exp1, x = curDur, k =RP, prob = .5, fun = logistic_fun, grouping = .(cond))
+fits_exp1_all = quickpsy(dat_exp1, x = curDur, k =RP, prob = .5, grouping = .(cond))
+fits_exp1_all
 ```
 
 
@@ -100,6 +112,14 @@ plot_fit_exp1
 ```
 
 
+
+```{r}
+aic(fits_exp1_all)
+```
+
+```{r}
+ypred(fits_exp1_all)
+```
 
 =======
 ##slope
@@ -125,7 +145,12 @@ exp1_thres
 
 ## list all of the parameter for each subjects
 ```{r fitted paramters exp1}
+par_exp1 = fits_exp1$par %>% 
+  dplyr::select(-parinf,-parsup) %>%
+  spread(parn, par) %>%   
+  rename(pse =p1, jnd = p2)  # rename columns
 par_exp1$slope = 3/exp(par_exp1$jnd/1000) #slope
+
 par_exp1
 ```
 
@@ -133,16 +158,16 @@ par_exp1
 ```{r average fitted paramters}
 mpars_exp1 = par_exp1%>% 
   group_by(cond) %>%
-  summarise(m_pse = mean(pse), 
-            m_jnd = mean(jnd),  
-            m_slope = mean(slope), 
-            n = n(),
+  summarise(m_pse = mean(pse), m_jnd = mean(jnd),  m_slope = mean(slope), n = n(),
             pse_se = sd(pse)/sqrt(n-1), 
             jnd_se = sd(jnd)/sqrt(n-1),
             slope_se = sd(slope)/sqrt(n-1)) 
 
 mpars_exp1
 ```
+
+
+
 
 =======
 ##Export for JASP
@@ -161,12 +186,25 @@ exp1_jasp
 
 
 ## plot PSE
+```{r}
+plot_pse_exp1 <- ggplot(mpars_exp1,aes(cond, m_pse, color = cond, fill = cond))+
+  geom_bar(stat='identity') + 
+  geom_errorbar(aes(ymin = m_pse - pse_se, ymax = m_pse + pse_se), width =0.5) +
+  geom_signif(comparisons=list(c("PS", "NS")), annotations="*", y_position = 1150, tip_length = 0, vjust=0.4, color = 'black') +
+  labs(x = " ", y = "Mean PSE (ms)") +
+  coord_cartesian(ylim = c(0,1300)) +
+  scale_color_manual(values = c('gray','black')) +
+  scale_fill_manual(values = c('gray','black')) +
+  theme(legend.position = "none")
+
+plot_pse_exp1
+```
 
 ```{r}
 plot_pse_exp1_box <- ggplot(par_exp1,aes(x=cond, y=pse, color = cond))+
   geom_boxplot() + 
   geom_jitter(position=position_jitter(0.2))+
-  geom_signif(comparisons=list(c("PS", "NS")), annotations="***", y_position = 1350, tip_length = 0, vjust=0.4, color = 'black') +
+  geom_signif(comparisons=list(c("PS", "NS")), annotations="*", y_position = 1350, tip_length = 0, vjust=0.4, color = 'black') +
   labs(x = " ", y = "Mean PSE (ms)") +
   coord_cartesian(ylim = c(500,1400)) +
   scale_color_manual(values = c('gray','black')) +
@@ -176,23 +214,30 @@ plot_pse_exp1_box <- ggplot(par_exp1,aes(x=cond, y=pse, color = cond))+
 plot_pse_exp1_box
 ```
 
-
-
 ## plot JND
-
 ```{r}
 plot_jnd_exp1_box <- ggplot(par_exp1,aes(x=cond, y=jnd, color = cond))+
   geom_boxplot() + 
   geom_jitter(position=position_jitter(0.2))+
   labs(x = " ", y = "Mean JND (ms)") +
-  geom_signif(comparisons=list(c("PS", "NS")), annotations= "*", y_position = 235, tip_length = 0, vjust=0.4, color = 'black') +
-  coord_cartesian(ylim = c(0,250))+
+  coord_cartesian(ylim = c(80,380))+
   scale_color_manual(values = c('gray','black')) +
   scale_fill_manual(values = c('gray','black')) + theme(legend.position = "none")
 
 plot_jnd_exp1_box
 ```
 
+```{r}
+plot_jnd_exp1 <- ggplot(mpars_exp1,aes(cond, m_jnd, color = cond, fill = cond))+
+  geom_bar(stat='identity') + 
+  geom_errorbar(aes(ymin = m_jnd - jnd_se, ymax = m_jnd + jnd_se), width =0.5) +
+  labs(x = " ", y = "Mean JND (ms)") +
+  coord_cartesian(ylim = c(0,400))+
+  scale_color_manual(values = c('gray','black')) +
+  scale_fill_manual(values = c('gray','black')) + theme(legend.position = "none")
+
+plot_jnd_exp1
+```
 
 
 ## ANOVA and T-test
@@ -201,6 +246,8 @@ plot_jnd_exp1_box
 Anova_exp1_pse<- ezANOVA(data = par_exp1, dv= pse, wid=NSub, within=.(cond))
 Anova_exp1_pse
 ```
+
+
 
 ```{r}
 Anova_exp1_jnd<- ezANOVA(data = par_exp1, dv= jnd, wid=NSub, within=.(cond))
@@ -216,8 +263,6 @@ Anova_exp1_slope
 
 
 # Experiment 2
-
-Two types of sample-frequency distributions were tested in separate sessions: a descending sample frequency (DF) and an ascending sample frequency (AF), as depicted in Figure 1b. In the AF session, the sample frequencies were (1/28, 2/28, 3/28, 4/28, 5/28, 6/28, 7/28) for the intervals (400, 600, 800, 1000, 1200, 1400, 1600 ms); the DF session, the sample frequencies were reversed. There were seven blocks of 56 trials in each session.  
 
 ## Range Frequency Theory
 
@@ -236,46 +281,54 @@ fig_exp2_sub1_dist <- ggplot(data=sumfreq_exp2_sub1, aes(x=curDur, y=count, fill
   scale_color_manual(values = c('gray','black')) +
   scale_fill_manual(values = c('gray','black')) +mytheme
 
-
-ggsave("../figures/sumfreq_exp2_sub1.png")
 fig_exp2_sub1_dist
 ```
+
 
 ```{r}
 mDist_exp2 <-  dat_exp2 %>% filter(NSub == 1) %>% dplyr::group_by(cond) %>%
   summarise(m_cDur = mean(curDur), n = dplyr::n(),
-            sd_Dur = sd(curDur),
-            gm_Dur = gm_mean(curDur))
+            cDur_se = sd(curDur)/sqrt(n-1))
 mDist_exp2
 ```
 
 
+```{r}
+plot_mDist_exp2 <- ggplot(mDist_exp2,aes(cond, m_cDur, color = cond, fill = cond))+
+  geom_bar(stat='identity') +
+  geom_errorbar(aes(ymin = m_cDur - cDur_se, ymax = m_cDur + cDur_se), width =0.5) +
+  #geom_text(aes(label=paste("(",m_cDur,",",round(cDur_se),")") ),size=8, hjust=0.5, vjust=-2, color = 'black')+
+  labs(x = " ", y = " ") +
+  #coord_cartesian(ylim = c(0,1600))+
+  scale_color_manual(values = c('gray','black')) +
+  scale_fill_manual(values = c('gray','black')) +
+  theme(legend.position = "none", legend.title = element_blank())+
+  theme(panel.grid.major=element_line(colour=NA))+
+  theme(axis.text.y = element_text(size=26,colour = "black"),
+        axis.text.x   = element_text(size=26, colour = "black"),
+        axis.title.y  = element_text(size=26, colour = "black"),
+        axis.title.x  = element_text(size=26, colour = "black"),
+        panel.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.line = element_line(colour = "black")
+  )
+
+plot_mDist_exp2
+```
+
+
+
 ## Fit psychometric functions
 ```{r fit psychometric functions Exp2}
-fits_exp2 = quickpsy(dat_exp2, x = curDur, k =RP, prob = .5, grouping = .(cond, NSub), fun = logistic_fun, thresholds = FALSE)
-```
-
-```{r}
-par_exp2 <- fits_exp2$par %>%  dplyr::select(cond, NSub, parn, par) %>%
-  pivot_wider(names_from = parn, values_from = par) %>% 
-  mutate(jnd = log(3)/p2)
-par_exp2$pse <-  par_exp2$p1
-par_exp2$p1 <-  NULL
-par_exp2$p2 <-  NULL
-head(par_exp2)
-```
-
-
-
-```{r, fig.cap= 'PSE: Bisection task performance in Experiment 2'}
-# plot fitted function
-plot(fits_exp2)+ mytheme
+fits_exp2 = quickpsy(dat_exp2, x = curDur, k =RP, prob = .5, grouping = .(cond, NSub))
 ```
 
 
 ```{r}
-fits_exp2_all = quickpsy(dat_exp2, x = curDur, k =RP, prob = .5,fun = logistic_fun,
-                           grouping = .(cond))
+fits_exp2_all = quickpsy(dat_exp2, x = curDur, k =RP, 
+                         grouping = .(cond))
+fits_exp2_all
 ```
 
 ```{r, fig.cap= 'PSE: Bisection task performance in Experiment 2'}
@@ -285,26 +338,27 @@ plot_fit_exp2 <- plot(fits_exp2_all) +
   scale_color_manual(values = c('gray','black')) +
   scale_fill_manual(values = c('gray','black')) +
   theme(legend.position = c(0.7, 0.2), legend.title = element_blank())
-#+theme_classic()
 
 plot_fit_exp2
 ```
 
 
 ## Average fitted paramters and plot
-
 ```{r list all of the parameter for each subjects}
+par_exp2 = fits_exp2$par %>% 
+  dplyr::select(-parinf,-parsup) %>%
+  spread(parn, par) %>%   
+  rename(pse =p1, jnd = p2)  # rename columns
+
 par_exp2$slope = 3/exp(par_exp2$pse/1000) #add slope
+
 par_exp2
 ```
 
 ```{r}
 mpse_exp2 = par_exp2%>% 
   group_by(cond) %>%
-  summarise(m_pse = mean(pse), 
-            m_jnd = mean(jnd), 
-            m_slope = mean(slope), 
-            n = n(),
+  summarise(m_pse = mean(pse), m_jnd = mean(jnd), m_slope = mean(slope), n = n(),
             pse_se = sd(pse)/sqrt(n-1), 
             jnd_se = sd(jnd)/sqrt(n-1),
             slope_se = sd(slope)/sqrt(n-1)) 
@@ -326,7 +380,19 @@ exp2_jasp
 
 
 ## plot PSE
+```{r}
+plot_pse_exp2 <- ggplot(mpse_exp2,aes(cond, m_pse, color = cond, fill = cond))+
+  geom_bar(stat='identity') + 
+  geom_errorbar(aes(ymin = m_pse - pse_se, ymax = m_pse + pse_se), width =0.5) +
+  geom_signif(comparisons=list(c("DF", "AF")), annotations="***", y_position = 1250, tip_length = 0, vjust=0.4, color = 'black') +
+  labs(x = " ", y = "Mean PSE (ms)") +
+  coord_cartesian(ylim = c(0,1300))+
+  scale_color_manual(values = c('gray','black')) +
+  scale_fill_manual(values = c('gray','black')) +
+  theme(legend.position = "none")
 
+plot_pse_exp2
+```
 
 ```{r}
 plot_pse_exp2_box <- ggplot(par_exp2,aes(x=cond, y=pse, color = cond))+
@@ -343,20 +409,34 @@ plot_pse_exp2_box
 ```
 
 ## plot JND
+```{r}
+plot_jnd_exp2 <- ggplot(mpse_exp2,aes(cond, m_jnd, color = cond, fill = cond))+
+  geom_bar(stat='identity') + 
+  geom_errorbar(aes(ymin = m_jnd - jnd_se, ymax = m_jnd + jnd_se), width =0.5) +
+  geom_signif(comparisons=list(c("DF", "AF")), annotations="***", y_position = 330, tip_length = 0, vjust=0.4, color = 'black') +
+  labs(x = " ", y = "Mean JND (ms)") +
+  coord_cartesian(ylim = c(0,350))+
+  scale_color_manual(values = c('gray','black')) +
+  scale_fill_manual(values = c('gray','black')) +
+  theme(legend.position = "none")
 
+plot_jnd_exp2
+```
 ```{r}
 plot_jnd_exp2_box <- ggplot(par_exp2,aes(x=cond, y=jnd, color = cond))+
   geom_boxplot() + 
   geom_jitter(position=position_jitter(0.2)) +
-  geom_signif(comparisons=list(c("DF", "AF")), annotations="**", y_position = 240, tip_length = 0, vjust=0.4, color = 'black') +
+  geom_signif(comparisons=list(c("DF", "AF")), annotations="***", y_position = 310, tip_length = 0, vjust=0.4, color = 'black') +
   labs(x = " ", y = "Mean JND (ms)") +
-  coord_cartesian(ylim = c(0,250))+
+  coord_cartesian(ylim = c(80,330))+
   scale_color_manual(values = c('gray','black')) +
   scale_fill_manual(values = c('gray','black')) +
   theme(legend.position = "none")
 
 plot_jnd_exp2_box
 ```
+
+
 
 
 
@@ -382,9 +462,6 @@ Anova_exp2_slope
 
 # Experiment 3
 
-Eight intervals between 400 and 1450 ms (400, 550, 700, 850, 1000, 1150, 1300, and 1450 ms) were used in Experiment 3. Two types of sample frequencies were implemented: a U-shaped distribution and an inverted T-shaped distribution (see Figure 1c). In the U-shaped sampling session, the presentation frequencies of durations (400, 550, 700, 850, 1000, 1150, 1300, and 1450 ms) were (30/72, 2/72,2/72, 2/72, 2/72, 2/72, 2/72, 30/72), respectively; in the inverted T-shaped sampling session, the frequencies were (2/72, 2/72, 2/72, 30/72, 30/72, 2/72, 2/72, 2/72) for the same durations. The two types of sample distributions have the same arithmetic mean, but they differ in their variability. 
-
-
 ## Range Frequency Theory
 
 To understand the pattern of results concerning schifts in the temporal bisection point, We have to check the distribution of stimuli within the sets firstly. 
@@ -397,7 +474,6 @@ sumfreq_exp3_sub1$freq <- sumfreq_exp3_sub1$count/count_exp3*100
 
 fig_exp3_sub1_dist <- ggplot(data=sumfreq_exp3_sub1, aes(x=curDur, y=freq, fill=cond)) +
   geom_bar(stat="identity", position=position_dodge()) + 
-  #geom_smooth(method="loess",se = FALSE)+
   xlab('Durations (ms)') + ylab('Counts of trials for each participant') +
   scale_x_continuous(breaks=seq(0, 1600, 200)) +
   scale_color_manual(values = c('gray','black')) +
@@ -406,22 +482,19 @@ fig_exp3_sub1_dist <- ggplot(data=sumfreq_exp3_sub1, aes(x=curDur, y=freq, fill=
 fig_exp3_sub1_dist
 ```
 
-
-
 ```{r}
 mDist_exp3 <-  dat_exp3 %>% filter(NSub == 1) %>% dplyr::group_by(cond) %>%
   summarise(m_cDur = mean(curDur), n = dplyr::n(),
-            sd_Dur = sd(curDur),
-            gm_Dur = gm_mean(curDur))
+            cDur_se = sd(curDur)/sqrt(n-1))
 mDist_exp3
 ```
+
 
 ```{r}
 plot_mDist_exp3 <- ggplot(mDist_exp3,aes(cond, m_cDur, color = cond, fill = cond))+
   geom_bar(stat='identity') +
-  geom_errorbar(aes(ymin = m_cDur - sd_Dur, ymax = m_cDur + sd_Dur), width =0.5) +
+  geom_errorbar(aes(ymin = m_cDur - cDur_se, ymax = m_cDur + cDur_se), width =0.5) +
   labs(x = " ", y = " ") +
-  #coord_cartesian(ylim = c(0,1200))+
   scale_color_manual(values = c('gray','black')) +
   scale_fill_manual(values = c('gray','black')) +
   theme(legend.position = "none", legend.title = element_blank())+
@@ -443,33 +516,14 @@ plot_mDist_exp3
 
 ```{r fit psychometric functions Exp3}
 fits_exp3 = quickpsy(dat_exp3, x = curDur, k =RP, prob = .5,
-                       grouping = .(cond, NSub), 
-                       fun = logistic_fun,
-                       thresholds = FALSE)
-head(fits_exp3$thresholds)
-```
-
-```{r}
-par_exp3 <- fits_exp3$par %>%  dplyr::select(cond, NSub, parn, par) %>%
-  pivot_wider(names_from = parn, values_from = par) %>% 
-  mutate(jnd = log(3)/p2)
-par_exp3$pse <-  par_exp3$p1
-par_exp3$p1 <- NULL
-par_exp3$p2 <-NULL
-head(par_exp3)
-```
-
-
-
-```{r, fig.cap= 'PSE: Bisection task performance in Experiment 3.'}
-# plot fitted function
-plot(fits_exp3) + theme_classic()
+                     grouping = .(cond, NSub), thresholds = FALSE)
 ```
 
 
 ```{r}
-fits_exp3_all = quickpsy(dat_exp3, x = curDur, k =RP, prob = .5, fun = logistic_fun,
-                           grouping = .(cond), thresholds = FALSE)
+fits_exp3_all = quickpsy(dat_exp3, x = curDur, k =RP, 
+                         grouping = .(cond), thresholds = FALSE)
+fits_exp3_all
 ```
 
 
@@ -491,6 +545,11 @@ plot_fit_exp3
 
 
 ```{r}
+par_exp3 = fits_exp3$par %>% 
+  dplyr::select(-parinf,-parsup) %>%
+  spread(parn, par) %>%   
+  rename(pse =p1, jnd = p2)  # rename columns
+
 par_exp3$slope = 3/exp(par_exp3$pse/1000) #add slope
 
 par_exp3
@@ -505,7 +564,6 @@ mpars_exp3 = par_exp3%>%
   summarise(m_pse = mean(pse), m_jnd = mean(jnd), m_slope = mean(slope), n = n(),pse_se = sd(pse)/sqrt(n-1), jnd_se = sd(jnd)/sqrt(n-1),slope_se = sd(slope)/sqrt(n-1))
 
 mpars_exp3
-
 ```
 
 
@@ -518,11 +576,23 @@ exp3_jasp <- par_exp3%>%
   spread(cond, pse.jnd.slope)%>%
   separate(`U-shaped`, c("U_pse", "U_jnd", "U_slope"), sep = "_")%>%
   separate(`I T-shaped`, c("B_pse", "B_jnd", "B_slope"), sep = "_")
+
 exp3_jasp
 ```
 
 
 ## plot PSE
+```{r}
+plot_pse_exp3 <- ggplot(mpars_exp3,aes(cond, m_pse, color = cond, fill = cond))+
+  geom_bar(stat='identity') + 
+  geom_errorbar(aes(ymin = m_pse - pse_se, ymax = m_pse + pse_se), width =0.5) +
+  coord_cartesian(ylim = c(0,1300)) +
+  labs(x = " ", y = "Mean PSE (ms)") +
+  scale_color_manual(values = c('gray','black')) +
+  scale_fill_manual(values = c('gray','black')) +
+  theme(legend.position = "none", legend.title = element_blank())
+plot_pse_exp3
+```
 
 ```{r}
 plot_pse_exp3_box <- ggplot(par_exp3,aes(x=cond, y=pse, color = cond))+
@@ -537,13 +607,25 @@ plot_pse_exp3_box
 ```
 
 ## plot JND
+```{r}
+plot_jnd_exp3 <- ggplot(mpars_exp3,aes(cond, m_jnd, color = cond, fill = cond))+
+  geom_bar(stat='identity') + 
+  geom_errorbar(aes(ymin = m_jnd - jnd_se, ymax = m_jnd + jnd_se), width =0.5) +
+  coord_cartesian(ylim = c(0,300))+
+  geom_signif(comparisons=list(c("U-shaped", "I T-shaped")), annotations="***", y_position = 250, tip_length = 0, vjust=0.4, color = 'black') +
+  labs(x = " ", y = "Mean JND (ms)") +
+  scale_color_manual(values = c('gray','black')) +
+  scale_fill_manual(values = c('gray','black')) +
+  theme(legend.position = "none")
+plot_jnd_exp3
+```
 
 ```{r}
 plot_jnd_exp3_box <- ggplot(par_exp3,aes(x=cond, y=jnd, color = cond))+
   geom_boxplot() + 
   geom_jitter(position=position_jitter(0.2))+
-  coord_cartesian(ylim = c(0,280))+
-  geom_signif(comparisons=list(c("U-shaped", "I T-shaped")), annotations="**", y_position = 250, tip_length = 0, vjust=0.4, color = 'black') +
+  coord_cartesian(ylim = c(0,400))+
+  geom_signif(comparisons=list(c("U-shaped", "I T-shaped")), annotations="***", y_position = 380, tip_length = 0, vjust=0.4, color = 'black') +
   labs(x = " ", y = "Mean JND (ms)") +
   scale_color_manual(values = c('gray','black')) +
   scale_fill_manual(values = c('gray','black')) +
@@ -551,19 +633,8 @@ plot_jnd_exp3_box <- ggplot(par_exp3,aes(x=cond, y=jnd, color = cond))+
 plot_jnd_exp3_box
 ```
 
-## plot Slope
-```{r}
-plot_slope_exp3 <- ggplot(mpars_exp3,aes(cond, m_slope, color = cond, fill = cond))+
-  geom_bar(stat='identity') + 
-  geom_errorbar(aes(ymin = m_slope - slope_se, ymax = m_slope + slope_se), width =0.5) +
-  coord_cartesian(ylim = c(0,3))+
-  labs(x = "Exp 3", y = "Mean Slope") +
-  scale_color_manual(values = c('gray','black')) +
-  scale_fill_manual(values = c('gray','black')) +
-  theme(legend.position = "none", legend.title = element_blank())
 
-plot_slope_exp3
-```
+
 
 ## ANOVA
 
@@ -586,41 +657,21 @@ Anova_exp3_slope<- ezANOVA(data = par_exp3, dv= slope, wid=NSub, within=.(cond))
 Anova_exp3_slope
 ```
 
-#merge parameters of experiment 1,2 and 3
-```{r}
-par_exp <- rbind(par_exp1, par_exp2)
-par_exp <- rbind(par_exp, par_exp3)
-head(par_exp)
-```
-
-
-```{r}
-prob_exp <- rbind(fits_exp1$averages,  fits_exp2$averages)
-prob_exp <- rbind(prob_exp,   fits_exp3$averages)
-head(prob_exp)
-```
-
-
 # figures in manuscript
-
 
 ## plot figure 1 in manuscript
 
 ```{r}
 fig_exp1_sub1_dist2 <- ggplot(data=sumfreq_exp1_sub1, aes(x=curDur, y=freq, fill=cond, color = cond)) +
-  geom_bar(stat="identity", position=position_dodge(), width = 3) + 
+  geom_bar(stat="identity", position=position_dodge(),width = 3) + 
   geom_point()+
-  scale_x_continuous(breaks=seq(0, 1600, 200)) +
-  scale_y_continuous(breaks=seq(0, 50, 10)) +
   xlab('') + ylab('Prob. (%)') +
+  scale_x_continuous(breaks=seq(0, 1600, 200)) +
+  scale_y_continuous(breaks=seq(0, 50, 5)) +
   scale_color_manual(values = c('gray','black')) +
   scale_fill_manual(values = c('gray','black')) +
-  theme(legend.position = 'none', legend.title = element_blank()) + facet_wrap(~cond)
-fig_exp1_sub1_dist2
-```
+  theme(legend.position = "none", legend.title = element_blank()) + facet_wrap(~cond)
 
-
-```{r}
 fig_exp2_sub1_dist_2 <- ggplot(data=sumfreq_exp2_sub1, aes(x=curDur, y=freq, fill=cond, color = cond)) +
   geom_bar(stat="identity", position=position_dodge(), width = 3) + 
   geom_point()+
@@ -630,11 +681,7 @@ fig_exp2_sub1_dist_2 <- ggplot(data=sumfreq_exp2_sub1, aes(x=curDur, y=freq, fil
   scale_color_manual(values = c('gray','black')) +
   scale_fill_manual(values = c('gray','black')) +
   theme(legend.position = 'none', legend.title = element_blank()) + facet_wrap(~cond)
-fig_exp2_sub1_dist_2
-```
 
-
-```{r}
 fig_exp3_sub1_dist2 <- ggplot(data=sumfreq_exp3_sub1, aes(x=curDur, y=freq, fill=cond, color = cond)) +
   geom_bar(stat="identity", position=position_dodge(), width = 3) + 
   geom_point()+
@@ -644,42 +691,44 @@ fig_exp3_sub1_dist2 <- ggplot(data=sumfreq_exp3_sub1, aes(x=curDur, y=freq, fill
   scale_color_manual(values = c('gray','black')) +
   scale_fill_manual(values = c('gray','black')) +
   theme(legend.position = "none", legend.title = element_blank())+ facet_wrap(~cond)
-fig_exp3_sub1_dist2
-```
 
-```{r}
-fig_dist_combine <- plot_grid(fig_exp1_sub1_dist2, fig_exp2_sub1_dist_2, fig_exp3_sub1_dist2,  ncol = 1, labels = c("a", "b", "c"), rel_heights = c(3,3,3))
-
-fig_dist_combine
-
+plot_grid(fig_exp1_sub1_dist2, fig_exp2_sub1_dist_2, fig_exp3_sub1_dist2,  ncol = 1, labels = c("A", "B", "C"), rel_heights = c(3,3,3))
 ```
 
 
 
 ## plot Figure 2 in manuscript
 ```{r}
-fig_exp1_combine <- plot_grid(plot_fit_exp1, plot_pse_exp1_box, plot_jnd_exp1_box,  nrow = 1, labels = c("a", "b", "c"), rel_widths = c(4,3,3))
-fig_exp1_combine
+plot_grid(plot_fit_exp1, plot_pse_exp1, plot_jnd_exp1,  nrow = 1, labels = c("A", "B", "C"), rel_widths = c(4,3,3))
+```
+
+```{r}
+fig2 <- plot_grid(plot_fit_exp1, plot_pse_exp1_box, plot_jnd_exp1_box,  nrow = 1, labels = c("A", "B", "C"), rel_widths = c(4,3,3))
 ```
 
 ## plot Figure 3 in manuscript
 ```{r}
-fig_exp2_combine <- plot_grid(plot_fit_exp2, plot_pse_exp2_box, plot_jnd_exp2_box,  nrow = 1, labels = c("a", "b", "c"), rel_widths = c(4,3,3))
-fig_exp2_combine
+plot_grid(plot_fit_exp2, plot_pse_exp2, plot_jnd_exp2,  nrow = 1, labels = c("A", "B", "C"), rel_widths = c(4,3,3))
+```
+
+```{r}
+fig3 <- plot_grid(plot_fit_exp2, plot_pse_exp2_box, plot_jnd_exp2_box,  nrow = 1, labels = c("A", "B", "C"), rel_widths = c(4,3,3))
 ```
 
 ## plot Figure 4 in manuscript
+```{r}
+plot_grid(plot_fit_exp3, plot_pse_exp3, plot_jnd_exp3,  nrow = 1, labels = c("A", "B", "C"), rel_widths = c(4,3,3))
+```
 
 ```{r}
-fig_exp3_combine <- plot_grid(plot_fit_exp3, plot_pse_exp3_box, plot_jnd_exp3_box,  nrow = 1, labels = c("a", "b", "c"), rel_widths = c(4,3,3))
-
-fig_exp3_combine
+fig4 <- plot_grid(plot_fit_exp3, plot_pse_exp3_box, plot_jnd_exp3_box,  nrow = 1, labels = c("A", "B", "C"), rel_widths = c(4,3,3))
 ```
 
 
 
 # Model Results
 
+## load the Model result
 
 ```{r}
 #customize theme
@@ -690,99 +739,70 @@ theme_new <- theme_bw() +
         axis.line=element_line(colour="black"),
         strip.background = element_rect(color = "white", fill = "white"),
         panel.grid = element_blank())
-```
 
-##  Models
-The psychometric function can be modeled a logistic function
-with parameters $\alpha_i$ and $\beta_i$, so that
-$$ logit(\theta_{i,j}) = \alpha_i + \beta_i(x_{i,j} - \bar{X_i}) $$
+models <- c('model1', 'model2','model3', 'model4','model5')
+expDat <- list(dat_exp1, dat_exp2, dat_exp3)
+#load the data and remove the outliers
 
-* model 1 : Bisection Model 
-$$\bar{X_i} = \frac{Max(X_i) + Min(X_i)}{2}$$
-
-* model 2: Spacing Model
-
-$$\bar{X_i} = \frac{1}{m}  \Sigma_{i = 1}^{m}{x_i}$$
-
-* model 3: Weighted Model
-
-$$\bar{X_i} = \frac{1}{m \times n}  \Sigma_{i = 1}^{m}{\Sigma_{j = 1}^{n}{x_i \times n_j}}$$
-
-
-* model 4: Two-stage Weighted Model
-
-$$\bar{X_i} = \hat{X_i} $$
-$$\hat{X_i} \sim N(\mu, \sigma) $$
-$$\mu =  \frac{1}{m \times n}  \Sigma_{i = 1}^{m}{\Sigma_{j = 1}^{n}{x_i \times n_j}}$$
-
-* model 5: Distribution model
-
-$$\beta_i[1]  \sim N(sd(X_i)[1] *\mu_{\beta_{i}}, \sigma_{i}) $$
-
-$$\beta_i[2] \sim N(sd(X_i)[2] *\mu_{\beta_{i}}, \sigma_{i}) $$
-
-$$\bar{X_i} = \hat{X_i} $$
-$$\hat{X_i} \sim N(\mu, \sigma)$$
-$$\mu =  \frac{1}{m \times n}  \Sigma_{i = 1}^{m}{\Sigma_{j = 1}^{n}{x_i \times n_j}}$$
-
-### load the Model result
-
-```{r}
-par_GLM_observed <-par_exp%>% filter(!((NSub == 10|NSub == 6 ) & (cond == 'AF'| cond =='DF')))%>% filter(!((NSub == 1) & (cond == 'PS'| cond =='NS')))
+par_observed <- rbind(rbind(par_exp1, par_exp2), par_exp3)
+par_observed <- par_observed %>% filter(!((NSub == 10|NSub == 6 ) & (cond == 'AF'| cond =='DF')))%>% filter(!((NSub == 1) & (cond == 'PS'| cond =='NS')))
 modelresults<- read.csv("../data/modelresults.csv")  %>% filter(!((NSub == 10|NSub == 6) & (cond == 'AF'| cond =='DF')))%>% filter(!((NSub == 1) & (cond == 'PS'| cond =='NS')))
-
-displayModellist <- c("Bisection Model",  "Spacing Model", "Ensemble Mean",  "Two-stage Ensemble Mean", "EDA")
 ```
 
 ```{r}
+displayModellist <- c("Bisection Model",  "Spacing Model", "Ensemble Mean",  "Two-stage Ensemble Mean", "EDA")
 #combine oberserved and predicated PSEs and JNDs
-par_comb = left_join(modelresults, par_GLM_observed, by = c('NSub', 'cond')) 
+par_comb = left_join(modelresults, par_observed, by = c('NSub', 'cond')) 
 par_comb$errpse <- par_comb$PSEmap-par_comb$pse
 par_comb$errjnd <- par_comb$JNDmap-par_comb$jnd
-par_comb$model = factor(par_comb$model, levels = unique(par_comb$model), labels = displayModellist)
-modelresults$model = factor(modelresults$model, levels = unique(modelresults$model), labels = displayModellist)
+par_comb$model = factor(par_comb$model, labels = displayModellist)
 head(par_comb)
+
 ```
 
 
-calculate AIC and BIC
+
 ```{r}
+#calculate AIC and BIC
 numParam <- 3
 mpar_comb <- par_comb %>% dplyr::group_by(model, cond) %>%
   dplyr::summarise(sumerrpse=sum((errpse)^2), n=n(), 
-                   sumerrjnd=sum((errjnd)^2),
-                   aicPse= 2 * numParam +  n*log(sumerrpse/n),
+                   sumerrjnd=sum((errjnd)^2)) %>% 
+  dplyr::group_by(model, cond) %>%
+  summarise(aicPse= 2 * numParam +  n*log(sumerrpse/n),
             bicPse = n*log(sumerrpse/n) + numParam*log(n),
             aicJnd= 2 * numParam +  n*log(sumerrjnd/n),
-            bicJnd = n*log(sumerrjnd/n) + numParam*log(n) ) 
+            bicJnd = n*log(sumerrjnd/n) + numParam*log(n), ) 
+
+### show the mean in each model 
+m_par <- modelresults %>% group_by(model, cond, NSub) %>%
+  summarise(xmean= mean(xmean), xmeanhat= mean(xmeanhat))  %>%
+  group_by(model, cond) %>%
+  summarise(xmean= mean(xmean), xmeanhat= mean(xmeanhat)) 
 ```
 
 
 ## plot figure 7 in manuscript
 ```{r}
 par_comb <- arrange(transform(par_comb,
-             cond=factor(cond,levels=c("PS","DF","U-shaped","NS","AF","I T-shaped"))),cond)
+                              cond=factor(cond,levels=c("PS","DF","U-shaped","NS","AF","I T-shaped"))),cond)
 
 cbp1 <- c( "#CC79A7", "#F0E442", "#0072B2", "#E69F00", "#D55E00")
-
 plt_ErrorScatter = ggplot(par_comb, aes(errpse, errjnd, color = model, shape = model)) + 
   geom_hline(yintercept = 0, linetype='dashed')+ geom_vline(xintercept = 0, linetype='dashed')+ 
   geom_point() +
   xlab('Prediction error in the PSEs (ms)')+ ylab('Prediction error in the JNDs (ms)')+
   scale_color_manual(values = cbp1) +
   scale_shape_manual(values=c(0, 1, 2, 8, 16))+
-  #scale_shape_manual(values=c(0, 1, 2, 3, 4, 5, 6, 8, 16, 12))+
   facet_wrap(~cond)+
   theme_new+ theme(legend.position = 'top')
 
-plt_ErrorScatter%>%
-  ggsave(filename = paste0("../figures/plt_ErrorScatter.png"), width = 9, height=7)
 plt_ErrorScatter
 ```
 
 
 
-
+## plot figure 6 in manuscript
 ```{r}
 m_parcomb <- par_comb %>% dplyr::group_by(model, cond) %>%
   dplyr::summarise(mPSEmap=mean(PSEmap), pse = mean(pse), mJNDmap=mean(JNDmap),jnd = mean(jnd),
@@ -790,18 +810,12 @@ m_parcomb <- par_comb %>% dplyr::group_by(model, cond) %>%
                    PSEmap_se = sd(PSEmap)/sqrt(n-1), JNDmap_se = sd(JNDmap)/sqrt(n-1),
                    errpse_se =sd(errpse)/sqrt(n-1), errjnd_se =sd(errjnd)/sqrt(n-1)) 
 
-m_par_observed <- par_GLM_observed %>% dplyr::group_by(cond) %>%
+m_par_observed <- par_observed %>% dplyr::group_by(cond) %>%
   dplyr::summarise(mpse=mean(pse), mjnd= mean(jnd), n=n(), 
                    pse_se =sd(pse)/sqrt(n-1), jnd_se =sd(jnd)/sqrt(n-1)) 
 m_par_observed$mPSEmap<-m_par_observed$mpse 
 m_par_observed$mJNDmap<-m_par_observed$mjnd 
-```
 
-
-
-## plot figure 6 in manuscript
-
-```{r}
 m_parcomb2 <- arrange(transform(m_parcomb,
              cond=factor(cond,levels=c("PS","DF","U-shaped","NS","AF","I T-shaped"))),cond)
 
@@ -815,103 +829,10 @@ fig_estimation = ggplot(m_parcomb2, aes(x=mPSEmap, y=mJNDmap, color = model, sha
   ylab('Observed JNDs (ms)')+xlab('Observed PSEs (ms)') +
   scale_color_manual(values = cbp1) +
   scale_shape_manual(values=c(0, 1, 2, 8, 16))+
-  #scale_shape_manual(values=c(0, 1, 2, 3, 4, 5, 6, 8, 16, 12))+
   theme_new+ theme(legend.position = 'top') + 
   facet_wrap(.~cond,  ncol=3)+
-  #facet_wrap(.~cond,  ncol=3,scales ="free")+
-  #scale_alpha(guide = 'none')+
   scale_size(guide = 'none')
-#+xlim(600,1200)+ylim(45,200)
+
 fig_estimation
-
-ggsave(paste0("../figures/fig_estimation.png"), fig_estimation, width = 9, height=6)
-
 ```
-
-
-### mean AICs for the prediction of PSE, collapsed across six sets conditions, 
-```{r}
-par_comb2 <- left_join(m_parcomb2, mpar_comb, by = c('model', 'cond'))  
-par_comb2 <- arrange(transform(par_comb2,
-             cond=factor(cond,levels=c("PS","NS","DF","AF","U-shaped","I T-shaped"))),cond)
-meanAIC <- par_comb2 %>% 
-  dplyr::group_by(model) %>%
-  dplyr::summarise(m_aicPse = mean(aicPse), m_aicJnd = mean(aicJnd)) 
-meanAIC
-```
-
-
-### calculate AIC and BIC on probability
-```{r}
-thetalist<- read.csv("../data/thetalist.csv")
-names(prob_exp)[3] <- "Dur"
-prob_exp$n <- NULL
-prob_exp$RP <- NULL
-prob_exp$X <- NULL
-thetalist$X <- NULL
-thetalist$exp <- NULL
-thetalist$DurID <- NULL
-prob_comb <- left_join(thetalist, prob_exp , by = c('NSub', 'cond', 'Dur'))  
-prob_comb$proberr <- prob_comb$Prob -prob_comb$prob
-numParam <- 3
-
-prob_comb$model = factor(prob_comb$model, levels = unique(prob_comb$model), labels = displayModellist)
-```
-
-
-```{r}
-mprob_comb <- prob_comb %>% dplyr::group_by(model, cond, NSub) %>%
-  dplyr::summarise(sumerr=sum((proberr)^2), n=n(), 
-aicProb= 2 * numParam +  n*log(sumerr/n),
-bicProb = n*log(sumerr/n) + numParam*log(n))%>% 
-  dplyr::group_by(model, cond) %>%
-  dplyr::summarise(m_aicProb =mean(aicProb),
-                   m_bicProb =mean(bicProb),
-                   n= n(),
-                   se_aicProb = sd(aicProb)/sqrt(n-1),
-                   se_bicProb = sd(bicProb)/sqrt(n-1))
-```
-
-
-```{r}
-#plot aic 
-plt_aicProb<- mprob_comb%>% 
-  ggplot(aes(cond, m_aicProb, color = model, fill = model, group =model)) +
- geom_point(position=position_dodge(.25)) + 
-  geom_line(position=position_dodge(.25))+
-  geom_errorbar(aes(ymax=m_aicProb+se_aicProb, ymin=m_aicProb-se_aicProb), width=1,size=0.5,    position=position_dodge(.25))+
-  xlab('')+ylab('Average AIC of probility estimation')+
-  theme_new+
-  scale_color_manual(values = cbp1) +
-  theme(legend.position = 'bottom') 
-
-
-plt_bicProb<- mprob_comb%>% 
-  ggplot(aes(cond, m_bicProb, color = model, fill = model, group =model)) +
-  geom_point(position=position_dodge(.25)) + 
-  geom_line(position=position_dodge(.25))+
-  geom_errorbar(aes(ymax=m_bicProb+se_bicProb, ymin=m_bicProb-se_bicProb), width=1,size=0.5,    position=position_dodge(.25))+
-  xlab('')+ylab('Average BIC of probility estimation')+
-  theme_new+
-  scale_color_manual(values = cbp1) +
-  theme(legend.position = 'bottom') 
-
-plt_aicbicProb<- ggarrange(plt_aicProb, plt_bicProb, common.legend = TRUE, ncol=2, nrow=1)+
-  theme(legend.position = 'bottom') 
-
-ggsave(paste0("../figures/plt_aicProb.png"), plt_aicProb, width = 4, height=4)
-
-plt_aicProb
-```
-```{r}
-mprob_comb
-```
-
-```{r}
-probAIC <- mprob_comb %>% 
-  dplyr::group_by(model) %>%
-  dplyr::summarise(m_aicProb = mean(m_aicProb), m_bicProb = mean(m_bicProb)) 
-probAIC
-```
-
 
