@@ -8,7 +8,7 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
-## run Models
+## Model Results
 ```{r message=TRUE, include=FALSE}
 source('RStanModels.R')
 source('dataana.R') 
@@ -40,10 +40,7 @@ if (runRstanModelslocally){
 }
 ```
 
-
-
 ## Model Results
-
 ```{r message=TRUE, include=FALSE}
 models <- c("Bisection Model",  "Spacing Model", "Ensemble Mean",  "Two-stage Ensemble Mean", "EDA", "Bisection Model GM",  "Spacing Model GM", "Ensemble Mean GM",  "Two-stage Ensemble Mean GM", "EDA GM") 
 expDat <- list(dat_exp1, dat_exp2, dat_exp3)
@@ -78,8 +75,7 @@ if (runRstanModelslocally){
 
 
 ### Merge the Result data 
-
-To preprocess the model result data, and merge different model results into a csv
+To preprocess the model result data, we merge different model results as two csv files.
 
 ```{r}
 AllresultList<- readRDS("modelling/rlt_ALL.rds") 
@@ -132,7 +128,7 @@ mm_thetalist <- m_thetalist %>% dplyr::group_by(model, cond) %>%
             bicProb = n*log(sumerrprob/n) + numParam*log(n))  %>% 
   group_by(model) %>%
   summarise(m_aicProb = mean(aicProb), m_bicProb = mean(bicProb)) 
-head(mm_thetalist)
+mm_thetalist
 ```
 
 ### prediction of PSE and JND
