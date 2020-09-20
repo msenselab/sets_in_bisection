@@ -111,7 +111,7 @@ model {
 stanmodel4 <- stan_model(model_code = model4, model_name="stanmodel4")
 
 
-### model number 5
+### model number 5 EDA
 model5 <- "
 // Logistic Psychophysical Function
 data {
@@ -154,7 +154,7 @@ model {
 stanmodel5 <- stan_model(model_code = model5, model_name="stanmodel5")
 
 
-### model number 6
+### model number 6 EDA (less variables)
 model6 <- "
 // Logistic Psychophysical Function
 data {

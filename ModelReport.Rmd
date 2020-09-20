@@ -113,9 +113,9 @@ prob_exp$prob <-NULL
 
 #combine oberserved and predicated probility
 m_thetalist = left_join(pred_thetalist, prob_exp, by = c('NSub', 'cond', 'Dur')) 
-m_thetalist$numParam = 34
-m_thetalist[which(m_thetalist$model %in% c("Two-stage Ensemble Mean","Two-stage Ensemble Mean GM" )), "numParam"] = 35
-m_thetalist[which(m_thetalist$model %in% c( "EDA", "EDA GM")), "numParam"] = 50
+m_thetalist$numParam = 6
+m_thetalist[which(m_thetalist$model %in% c("Two-stage Ensemble Mean","Two-stage Ensemble Mean GM" )), "numParam"] = 9
+m_thetalist[which(m_thetalist$model %in% c( "EDA", "EDA GM")), "numParam"] = 10
 m_thetalist$err_prob = m_thetalist$Prob- m_thetalist$obser_prob
 ```
 
@@ -149,9 +149,9 @@ par_comb<- arrange(transform(par_comb , model = factor(model, levels = displayMo
 par_comb <- arrange(transform(par_comb,
                               cond=factor(cond,levels=c("PS","DF","U-shaped","NS","AF","I T-shaped"))),cond)
 
-par_comb$numParam = 34
-par_comb[which(par_comb$model %in% c("Two-stage Ensemble Mean","Two-stage Ensemble Mean GM" )), "numParam"] = 35
-par_comb[which(par_comb$model %in% c( "EDA", "EDA GM")), "numParam"] = 50
+par_comb$numParam = 6
+par_comb[which(par_comb$model %in% c("Two-stage Ensemble Mean","Two-stage Ensemble Mean GM" )), "numParam"] = 9
+par_comb[which(par_comb$model %in% c( "EDA", "EDA GM")), "numParam"] = 10
 ```
 
 
@@ -242,9 +242,9 @@ fig_estimation
 
 calculate distance to the observed Pses and Jnds
 ```{r}
-m_parcomb2$dist_observed = (m_parcomb2$mPSEmap -m_parcomb2$pse)^2 +(m_parcomb2$mJNDmap -m_parcomb2$jnd)^2
+m_parcomb2$distance = sqrt((m_parcomb2$mPSEmap -m_parcomb2$pse)^2 +(m_parcomb2$mJNDmap -m_parcomb2$jnd)^2)
 mm_parcomb2 <- m_parcomb2 %>% dplyr::group_by(model) %>%
-  dplyr::summarise(m_dist_observed = mean(dist_observed)) 
+  dplyr::summarise(m_distance = mean(distance)) 
 head(mm_parcomb2)
 ```
 
