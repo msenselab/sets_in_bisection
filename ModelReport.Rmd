@@ -1,0 +1,296 @@
+---
+title: "ModelReport"
+author: "Xiuna Zhu"
+date: "9/20/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## run Models
+```{r message=TRUE, include=FALSE}
+source('RStanModels.R')
+source('dataana.R') 
+models <- c("Bisection Model",  "Spacing Model", "Ensemble Mean",  "Two-stage Ensemble Mean", "EDA", "Bisection Model GM",  "Spacing Model GM", "Ensemble Mean GM",  "Two-stage Ensemble Mean GM", "EDA GM") 
+expDat <- list(dat_exp1, dat_exp2, dat_exp3)
+
+sub_exp_dat <- list()
+  for(modelname in models) {
+    for (expID in 1: length(expDat)) {
+      data_exp <- expDat[[expID]]
+      data_exp$model <- modelname
+      data_exp$Exp <- paste0('exp', expID)
+      sub_exp <-  split(data_exp, data_exp$Exp) # split data for each subject
+      sub_exp_dat <- list.append(sub_exp_dat, sub_exp[[1]])
+    }
+  }
+```
+
+### run the model on local computer
+
+```{r include=FALSE}
+if (runRstanModelslocally){
+  rltlist <- list()
+  for(i in 1: length(sub_exp_dat)){
+     rlt <-  runRstanModelonlocal(sub_exp_dat[[i]])
+     rltlist <- list.append(rltlist, rlt)
+  }
+  saveRDS(rltlist, file = paste0(getwd(), "/modelling/rlt_ALL.rds"))
+}
+```
+
+
+
+## Model Results
+
+```{r message=TRUE, include=FALSE}
+models <- c("Bisection Model",  "Spacing Model", "Ensemble Mean",  "Two-stage Ensemble Mean", "EDA", "Bisection Model GM",  "Spacing Model GM", "Ensemble Mean GM",  "Two-stage Ensemble Mean GM", "EDA GM") 
+expDat <- list(dat_exp1, dat_exp2, dat_exp3)
+```
+
+```{r}
+  sub_exp_dat <- list()
+  for(modelname in models) {
+    for (expID in 1: length(expDat)) {
+      data_exp <- expDat[[expID]]
+      data_exp$model <- modelname
+      data_exp$Exp <- paste0('exp', expID)
+      sub_exp <-  split(data_exp, data_exp$Exp) # split data for each subject
+      sub_exp_dat <- list.append(sub_exp_dat, sub_exp[[1]])
+    }
+  }
+```
+
+
+### run the model on local computer
+
+```{r include=FALSE}
+if (runRstanModelslocally){
+  rltlist <- list()
+  for(i in 1: length(sub_exp_dat)){
+     rlt <-  runRstanModelonlocal(sub_exp_dat[[i]])
+     rltlist <- list.append(rltlist, rlt)
+  }
+  saveRDS(rltlist, file = paste0(getwd(), "/modelling/rlt_ALL.rds"))
+}
+```
+
+
+### Merge the Result data 
+
+To preprocess the model result data, and merge different model results into a csv
+
+```{r}
+AllresultList<- readRDS("modelling/rlt_ALL.rds") 
+modelresults <- {}
+thetalist <- {}
+if (needmerge == 1){
+  for(i in 1:length(AllresultList)){
+     modelresults = rbind(modelresults, AllresultList[[i]]$result) 
+     thetalist <- rbind(thetalist, AllresultList[[i]]$theta)
+  }
+  write.csv(modelresults, file.path(getwd(), "modelling/modelresults.csv"))
+  write.csv(thetalist, file.path(getwd(), "modelling/thetalist.csv"))
+}
+```
+
+###load the data and remove the outliers
+
+```{r}
+par_observed <- read.csv('modelling/psy_quickpsy_observed.csv') %>% filter(!((NSub == 10|NSub == 6) & (cond == 'AF'| cond =='DF')))%>% filter(!((NSub == 1) & (cond == 'PS'| cond =='NS')))
+modelresults<- read.csv("modelling/modelresults.csv")  %>% filter(!((NSub == 10|NSub == 6) & (cond == 'AF'| cond =='DF')))%>% filter(!((NSub == 1) & (cond == 'PS'| cond =='NS')))
+```
+
+### prediction of 'long' response
+
+```{r}
+pred_thetalist<- read.csv("modelling/thetalist.csv") 
+pred_thetalist$X <-NULL
+## probality of 'long' response for experiment 1, 2 and 3 
+prob_exp <- read.csv('modelling/prob_exp.csv')
+prob_exp$Dur = prob_exp$curDur
+prob_exp$curDur <-NULL
+prob_exp$obser_prob <-prob_exp$prob 
+prob_exp$prob <-NULL
+
+
+#combine oberserved and predicated probility
+m_thetalist = left_join(pred_thetalist, prob_exp, by = c('NSub', 'cond', 'Dur')) 
+m_thetalist$numParam = 34
+m_thetalist[which(m_thetalist$model %in% c("Two-stage Ensemble Mean","Two-stage Ensemble Mean GM" )), "numParam"] = 35
+m_thetalist[which(m_thetalist$model %in% c( "EDA", "EDA GM")), "numParam"] = 50
+m_thetalist$err_prob = m_thetalist$Prob- m_thetalist$obser_prob
+```
+
+```{r}
+#calculate AIC and BIC
+mm_thetalist <- m_thetalist %>% dplyr::group_by(model, cond) %>%
+  dplyr::summarise(sumerrprob=sum((err_prob)^2), n=n(), numParam = mean(numParam)) %>% 
+  dplyr::group_by(model,cond) %>%
+  summarise(aicProb= 2 * numParam +  n*log(sumerrprob/n),
+            bicProb = n*log(sumerrprob/n) + numParam*log(n))  %>% 
+  group_by(model) %>%
+  summarise(m_aicProb = mean(aicProb), m_bicProb = mean(bicProb)) 
+head(mm_thetalist)
+```
+
+### prediction of PSE and JND
+```{r}
+#combine oberserved and predicated PSEs and JNDs
+par_comb = left_join(modelresults, par_observed, by = c('NSub', 'cond')) 
+par_comb$errpse <- par_comb$PSEmap-par_comb$pse
+par_comb$errjnd <- par_comb$JNDmap-par_comb$jnd
+head(par_comb)
+```
+
+
+```{r}
+displayModellist <- c("Bisection Model",  "Spacing Model", "Ensemble Mean",  "Two-stage Ensemble Mean", "EDA")
+par_comb <- par_comb %>% 
+  filter(model %in% displayModellist)
+par_comb<- arrange(transform(par_comb , model = factor(model, levels = displayModellist)), model)
+par_comb <- arrange(transform(par_comb,
+                              cond=factor(cond,levels=c("PS","DF","U-shaped","NS","AF","I T-shaped"))),cond)
+
+par_comb$numParam = 34
+par_comb[which(par_comb$model %in% c("Two-stage Ensemble Mean","Two-stage Ensemble Mean GM" )), "numParam"] = 35
+par_comb[which(par_comb$model %in% c( "EDA", "EDA GM")), "numParam"] = 50
+```
+
+
+```{r}
+#calculate AIC and BIC
+mpar_comb <- par_comb %>% dplyr::group_by(model, cond) %>%
+  dplyr::summarise(sumerrpse=sum((errpse)^2), n=n(), 
+                   sumerrjnd=sum((errjnd)^2), numParam = mean(numParam)) %>% 
+  dplyr::group_by(model, cond) %>%
+  summarise(aicPse= 2 * numParam +  n*log(sumerrpse/n),
+            bicPse = n*log(sumerrpse/n) + numParam*log(n),
+            aicJnd= 2 * numParam +  n*log(sumerrjnd/n),
+            bicJnd = n*log(sumerrjnd/n) + numParam*log(n), ) 
+
+### show the mean in each model 
+m_par <- modelresults %>% group_by(model, cond, NSub) %>%
+  summarise(xmean= mean(xmean), xmeanhat= mean(xmeanhat))  %>%
+  group_by(model, cond) %>%
+  summarise(xmean= mean(xmean), xmeanhat= mean(xmeanhat)) 
+m_par
+```
+
+
+## plot figure 7 in manuscript
+
+```{r}
+#customize theme
+theme_new <- theme_bw() + 
+  theme(panel.border = element_blank(), 
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), 
+        axis.line=element_line(colour="black"),
+        strip.background = element_rect(color = "white", fill = "white"),
+        panel.grid = element_blank())
+```
+
+```{r}
+cbp1 <- c( "#CC79A7", "#F0E442", "#0072B2", "#E69F00", "#D55E00")
+plt_ErrorScatter = ggplot(par_comb, aes(errpse, errjnd, color = model, shape = model)) + 
+  geom_hline(yintercept = 0, linetype='dashed')+ geom_vline(xintercept = 0, linetype='dashed')+ 
+  geom_point() +
+  xlab('Prediction error in the PSEs (ms)')+ ylab('Prediction error in the JNDs (ms)')+
+  scale_color_manual(values = cbp1) +
+  scale_shape_manual(values=c(0, 1, 2, 8, 16))+
+  facet_wrap(~cond)+
+  theme_new+ theme(legend.position = 'top')
+
+ggsave(paste0("figures/fig7.png"), plt_ErrorScatter, width = 9, height=6)
+plt_ErrorScatter
+```
+
+
+
+## plot figure 6 in manuscript
+```{r}
+m_parcomb <- par_comb %>% dplyr::group_by(model, cond) %>%
+  dplyr::summarise(mPSEmap=mean(PSEmap), pse = mean(pse), mJNDmap=mean(JNDmap),jnd = mean(jnd),
+                   merrpse =mean(errpse), merrjnd = mean(errjnd),n=n(), 
+                   PSEmap_se = sd(PSEmap)/sqrt(n-1), JNDmap_se = sd(JNDmap)/sqrt(n-1),
+                   errpse_se =sd(errpse)/sqrt(n-1), errjnd_se =sd(errjnd)/sqrt(n-1)) 
+
+m_par_observed <- par_observed %>% dplyr::group_by(cond) %>%
+  dplyr::summarise(mpse=mean(pse), mjnd= mean(jnd), n=n(), 
+                   pse_se =sd(pse)/sqrt(n-1), jnd_se =sd(jnd)/sqrt(n-1)) 
+m_par_observed$mPSEmap<-m_par_observed$mpse 
+m_par_observed$mJNDmap<-m_par_observed$mjnd 
+
+m_parcomb2 <- arrange(transform(m_parcomb,
+             cond=factor(cond,levels=c("PS","DF","U-shaped","NS","AF","I T-shaped"))),cond)
+
+
+fig_estimation = ggplot(m_parcomb2, aes(x=mPSEmap, y=mJNDmap, color = model, shape = model)) + 
+  geom_point(data =m_par_observed, aes(x = mpse, y =mjnd, size=2), width =2, shape =16, alpha = 0.5,  color = 'black') +
+  geom_point(data = par_comb, aes(x = pse, y =jnd), alpha = 0.25, color = 'lightgray', shape=16) +
+  geom_point() +
+  geom_errorbar(aes(ymax=mJNDmap+JNDmap_se, ymin=mJNDmap-JNDmap_se), size=0.6)+
+  geom_errorbarh(aes(xmax=mPSEmap+PSEmap_se, xmin=mPSEmap-PSEmap_se),size=0.6)+
+  ylab('Observed JNDs (ms)')+xlab('Observed PSEs (ms)') +
+  scale_color_manual(values = cbp1) +
+  scale_shape_manual(values=c(0, 1, 2, 8, 16))+
+  theme_new+ theme(legend.position = 'top') + 
+  facet_wrap(.~cond,  ncol=3)+
+  scale_size(guide = 'none')
+
+ggsave(paste0("figures/fig6.png"), fig_estimation, width = 9, height=6)
+fig_estimation
+```
+
+calculate distance to the observed Pses and Jnds
+```{r}
+m_parcomb2$dist_observed = (m_parcomb2$mPSEmap -m_parcomb2$pse)^2 +(m_parcomb2$mJNDmap -m_parcomb2$jnd)^2
+mm_parcomb2 <- m_parcomb2 %>% dplyr::group_by(model) %>%
+  dplyr::summarise(m_dist_observed = mean(dist_observed)) 
+head(mm_parcomb2)
+```
+
+### plt AIC together
+```{r}
+par_comb2 <- left_join(m_parcomb, mpar_comb, by = c('model', 'cond'))  
+
+plt_aicpse<- ggplot(data = par_comb2, aes(cond, aicPse, color = model, fill = model, group =model)) +
+  geom_point(position=position_dodge(.25)) + 
+  geom_line(position=position_dodge(.25))+
+  geom_errorbar(aes(ymax=aicPse+errjnd_se, ymin=aicPse-errjnd_se), width=1,size=0.5, position=position_dodge(.25))+
+  xlab('')+ylab('Average AIC of PSE Estimation')+
+  theme_new+
+  #scale_color_manual(values = cbp1) +
+  theme(legend.position = 'bottom') 
+plt_aicpse
+```
+```{r}
+plt_aicjnd<- ggplot(data =par_comb2, aes(cond, aicJnd, color = model, fill = model, group =model)) +
+  geom_point( position=position_dodge(.25)) + 
+  geom_line( position=position_dodge(.25))+
+  geom_errorbar(aes(ymax=aicJnd+errjnd_se, ymin=aicJnd-errjnd_se), width=1,size=0.5, position=position_dodge(.25))+
+  xlab('')+ylab('Average AIC of JND Estimation')+
+  theme_new+
+  #scale_color_manual(values = cbp1) +
+  theme(legend.position = 'bottom') 
+plt_aicjnd
+```
+
+
+### ollapsed across six sets conditions, 
+```{r}
+meanAIC <- par_comb2 %>% 
+  group_by(model) %>%
+  summarise(m_aicPse = mean(aicPse), m_aicJnd = mean(aicJnd)) 
+meanAIC
+```
+
+
+
+```{r}
+plt_aicpsejnd<- ggarrange(plt_aicpse, plt_aicjnd, common.legend = TRUE, ncol=2, nrow=1)+
+  theme(legend.position = 'bottom') 
+plt_aicpsejnd
+```
