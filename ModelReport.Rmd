@@ -27,6 +27,17 @@ sub_exp_dat <- list()
   }
 ```
 
+```{r}
+#customize theme
+theme_new <- theme_bw() + 
+  theme(panel.border = element_blank(), 
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), 
+        axis.line=element_line(colour="black"),
+        strip.background = element_rect(color = "white", fill = "white"),
+        panel.grid = element_blank())
+```
+
 ### run the model on local computer
 
 ```{r include=FALSE}
@@ -220,22 +231,17 @@ par_comb<- arrange(transform(par_comb , model = factor(model, levels = displayMo
 par_comb <- arrange(transform(par_comb,
                               cond=factor(cond,levels=c("PS","DF","U-shaped","NS","AF","I T-shaped"))),cond)
 
-par_comb$numParam = 6
-par_comb[which(par_comb$model %in% c("Two-stage Ensemble Mean","Two-stage Ensemble Mean GM" )), "numParam"] = 9
-par_comb[which(par_comb$model %in% c( "EDA", "EDA GM")), "numParam"] = 10
+# par_comb$numParam = 6
+# par_comb[which(par_comb$model %in% c("Two-stage Ensemble Mean","Two-stage Ensemble Mean GM" )), "numParam"] = 9
+# par_comb[which(par_comb$model %in% c( "EDA", "EDA GM")), "numParam"] = 10
 ```
 
 
 ```{r}
-#calculate AIC and BIC
+#calculate WAIC and MSE
 mpar_comb <- par_comb %>% dplyr::group_by(model, cond) %>%
-  dplyr::summarise(sumerrpse=sum((errpse)^2), n=n(), 
-                   sumerrjnd=sum((errjnd)^2), numParam = mean(numParam)) %>% 
-  dplyr::group_by(model, cond) %>%
-  summarise(aicPse= 2 * numParam +  n*log(sumerrpse/n),
-            bicPse = n*log(sumerrpse/n) + numParam*log(n),
-            aicJnd= 2 * numParam +  n*log(sumerrjnd/n),
-            bicJnd = n*log(sumerrjnd/n) + numParam*log(n), ) 
+  dplyr::summarise( n=n(), mse_pse=sum((errpse)^2)/n,
+                   mse_jnd=sum((errjnd)^2)/n, m_waic = mean(waic))
 
 ### show the mean in each model 
 m_par <- modelresults %>% group_by(model, cond, NSub) %>%
@@ -247,17 +253,6 @@ m_par
 
 
 ## plot figure 7 in manuscript
-
-```{r}
-#customize theme
-theme_new <- theme_bw() + 
-  theme(panel.border = element_blank(), 
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(), 
-        axis.line=element_line(colour="black"),
-        strip.background = element_rect(color = "white", fill = "white"),
-        panel.grid = element_blank())
-```
 
 ```{r}
 cbp1 <- c( "#CC79A7", "#F0E442", "#0072B2", "#E69F00", "#D55E00")
@@ -279,10 +274,17 @@ plt_ErrorScatter
 ## plot figure 6 in manuscript
 ```{r}
 m_parcomb <- par_comb %>% dplyr::group_by(model, cond) %>%
-  dplyr::summarise(mPSEmap=mean(PSEmap), pse = mean(pse), mJNDmap=mean(JNDmap),jnd = mean(jnd),
-                   merrpse =mean(errpse), merrjnd = mean(errjnd),n=n(), 
-                   PSEmap_se = sd(PSEmap)/sqrt(n-1), JNDmap_se = sd(JNDmap)/sqrt(n-1),
-                   errpse_se =sd(errpse)/sqrt(n-1), errjnd_se =sd(errjnd)/sqrt(n-1)) 
+  dplyr::summarise(mPSEmap=mean(PSEmap),
+                   pse = mean(pse), 
+                   mJNDmap=mean(JNDmap),
+                   jnd = mean(jnd),
+                   merrpse =mean(errpse), 
+                   merrjnd = mean(errjnd),n=n(), 
+                   PSEmap_se = sd(PSEmap)/sqrt(n-1), 
+                   JNDmap_se = sd(JNDmap)/sqrt(n-1),
+                   errpse_se =sd(errpse)/sqrt(n-1), 
+                   errjnd_se =sd(errjnd)/sqrt(n-1),
+                   waic =mean(waic)) 
 
 m_par_observed <- par_observed %>% dplyr::group_by(cond) %>%
   dplyr::summarise(mpse=mean(pse), mjnd= mean(jnd), n=n(), 
@@ -315,49 +317,7 @@ calculate distance to the observed Pses and Jnds
 ```{r}
 m_parcomb2$distance = sqrt((m_parcomb2$mPSEmap -m_parcomb2$pse)^2 +(m_parcomb2$mJNDmap -m_parcomb2$jnd)^2)
 mm_parcomb2 <- m_parcomb2 %>% dplyr::group_by(model) %>%
-  dplyr::summarise(m_distance = mean(distance)) 
+  dplyr::summarise(m_distance = mean(distance), waic = mean(waic))　 
 head(mm_parcomb2)
 ```
 
-### plt AIC together
-```{r}
-par_comb2 <- left_join(m_parcomb, mpar_comb, by = c('model', 'cond'))  
-
-plt_aicpse<- ggplot(data = par_comb2, aes(cond, aicPse, color = model, fill = model, group =model)) +
-  geom_point(position=position_dodge(.25)) + 
-  geom_line(position=position_dodge(.25))+
-  geom_errorbar(aes(ymax=aicPse+errjnd_se, ymin=aicPse-errjnd_se), width=1,size=0.5, position=position_dodge(.25))+
-  xlab('')+ylab('Average AIC of PSE Estimation')+
-  theme_new+
-  #scale_color_manual(values = cbp1) +
-  theme(legend.position = 'bottom') 
-plt_aicpse
-```
-```{r}
-plt_aicjnd<- ggplot(data =par_comb2, aes(cond, aicJnd, color = model, fill = model, group =model)) +
-  geom_point( position=position_dodge(.25)) + 
-  geom_line( position=position_dodge(.25))+
-  geom_errorbar(aes(ymax=aicJnd+errjnd_se, ymin=aicJnd-errjnd_se), width=1,size=0.5, position=position_dodge(.25))+
-  xlab('')+ylab('Average AIC of JND Estimation')+
-  theme_new+
-  #scale_color_manual(values = cbp1) +
-  theme(legend.position = 'bottom') 
-plt_aicjnd
-```
-
-
-### ollapsed across six sets conditions, 
-```{r}
-meanAIC <- par_comb2 %>% 
-  group_by(model) %>%
-  summarise(m_aicPse = mean(aicPse), m_aicJnd = mean(aicJnd)) 
-meanAIC
-```
-
-
-
-```{r}
-plt_aicpsejnd<- ggarrange(plt_aicpse, plt_aicjnd, common.legend = TRUE, ncol=2, nrow=1)+
-  theme(legend.position = 'bottom') 
-plt_aicpsejnd
-```

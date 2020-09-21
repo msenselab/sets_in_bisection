@@ -7,6 +7,9 @@ library(rlist)
 library(ggpubr)
 library(gtools)
 library(reshape)
+#library(rstanarm)
+library(loo)
+
 
 # Setting
 options(mc.cores = parallel::detectCores())
@@ -22,7 +25,7 @@ threshold = 0.75
 #threshold = 0.84
 midthreshold = 0.5
 
-### model number 1-3
+### model number 1-3 "Bisection Model",  "Spacing Model", "Ensemble Mean"
 model123 <- "
   data {
     int nsubjs;
@@ -51,12 +54,17 @@ model123 <- "
     
     for (i in 1:nsubjs) {
       for (j in 1:nstim) {
-        real theta[2];
-        theta[1] = inv_logit(alpha[i] + beta[i] * (x[i,j]/xmean[1, i] - 1));  // * wf[i]
-        r[i,j] ~ binomial(n[i,j], theta[1]);
-        
-        theta[2] = inv_logit(alpha[i] + beta[i] * (x[i+nsubjs,j]/xmean[2, i] - 1)); //* wf[nsubjs+i]
-        r[i+nsubjs,j] ~ binomial(n[i+nsubjs,j], theta[2]);
+        r[i,j] ~ binomial(n[i,j], inv_logit(alpha[i] + beta[i] * (x[i,j]/xmean[1, i] - 1)));
+        r[i+nsubjs,j] ~ binomial(n[i+nsubjs,j], inv_logit(alpha[i] + beta[i] * (x[i+nsubjs,j]/xmean[2, i] - 1)));
+      }
+    }
+  }
+  generated quantities {
+    vector[2*nsubjs] log_lik;
+    for (i in 1:nsubjs){
+      for (j in 1:nstim) {
+        log_lik[i] = binomial_lpmf( r[i,j]| n[i,j], inv_logit(alpha[i] + beta[i] * (x[i,j]/xmean[1, i] - 1)));
+        log_lik[i+nsubjs] = binomial_lpmf(r[i+nsubjs,j]|n[i+nsubjs,j], inv_logit(alpha[i] + beta[i] * (x[i+nsubjs,j]/xmean[2, i] - 1)));
       }
     }
   }
@@ -66,10 +74,7 @@ model123 <- "
 stanmodel123 <- stan_model(model_code = model123, model_name="stanmodel123")
 
 
-
-
-
-### model number 4
+### model number 4 "Two-stage Ensemble Mean model"
 model4 <- "
 // Logistic Psychophysical Function
 data {
@@ -101,17 +106,26 @@ model {
     for (i in 1:nsubjs) {
       xmeanhat[k,i] ~ normal(xmean[k, 1], sigmac);
       for (j in 1:nstim) {
-          real theta;
-          theta = inv_logit(alpha[i] + beta[i] * (x[i+nsubjs*(k-1),j]/xmeanhat[k, i] - 1)); 
-          r[i+nsubjs*(k-1),j] ~ binomial(n[i+nsubjs*(k-1),j], theta);
+          r[i+nsubjs*(k-1),j] ~ binomial(n[i+nsubjs*(k-1),j], inv_logit(alpha[i] + beta[i] * (x[i+nsubjs*(k-1),j]/xmeanhat[k, i] - 1)));
       }
     }
   }
-}"
+}
+generated quantities {
+    vector[2*nsubjs] log_lik;
+    for (k in 1:2){
+      for (i in 1:nsubjs) {
+        for (j in 1:nstim) {
+            log_lik[i+nsubjs*(k-1)] = binomial_lpmf(r[i+nsubjs*(k-1),j]|n[i+nsubjs*(k-1),j], inv_logit(alpha[i] + beta[i] * (x[i+nsubjs*(k-1),j]/xmeanhat[k, i] - 1)));
+        }
+      }
+    }
+  }
+"
 stanmodel4 <- stan_model(model_code = model4, model_name="stanmodel4")
 
 
-### model number 5 EDA
+### model number 5  EDA
 model5 <- "
 // Logistic Psychophysical Function
 data {
@@ -143,18 +157,27 @@ model {
     beta[k,] ~ normal(mub[k]*xmean[k, 1]/xsd[k,1], sigmab[k]);
     for (i in 1:nsubjs) {
       for (j in 1:nstim) {
-          real theta;
-          theta = inv_logit(alpha[k,i] + beta[k, i] * (x[i+nsubjs*(k-1),j]/xmeanhat[k, i] - 1));  
-          r[i+nsubjs*(k-1),j] ~ binomial(n[i+nsubjs*(k-1),j], theta);
+          r[i+nsubjs*(k-1),j] ~ binomial(n[i+nsubjs*(k-1),j], inv_logit(alpha[k,i] + beta[k, i] * (x[i+nsubjs*(k-1),j]/xmeanhat[k, i] - 1)));
       }
     }
   }
-}"
+}
+generated quantities {
+    vector[2*nsubjs] log_lik;
+    for (k in 1:2){
+      for (i in 1:nsubjs) {
+        for (j in 1:nstim) {
+            log_lik[i+nsubjs*(k-1)] = binomial_lpmf(r[i+nsubjs*(k-1),j]|n[i+nsubjs*(k-1),j], inv_logit(alpha[k,i] + beta[k, i] * (x[i+nsubjs*(k-1),j]/xmeanhat[k, i] - 1)));
+        }
+      }
+    }
+  }
+"
 # compile models
 stanmodel5 <- stan_model(model_code = model5, model_name="stanmodel5")
 
 
-### model number 6 EDA (less variables)
+### model number 6  EDA (less variables)
 model6 <- "
 // Logistic Psychophysical Function
 data {
@@ -187,14 +210,24 @@ model {
       xmeanhat[k,i] ~ normal(xmean[k, 1], sigmac);
       beta[k,i] ~ normal(mub*xmean[k, 1]/xsd[k,1], sigmab);   
       for (j in 1:nstim) {
-          real theta;
-          theta = inv_logit(alpha[i] + beta[k,i]* (x[i+nsubjs*(k-1),j]/xmeanhat[k, i] - 1)); 
-          r[i+nsubjs*(k-1),j] ~ binomial(n[i+nsubjs*(k-1),j], theta);
+          r[i+nsubjs*(k-1),j] ~ binomial(n[i+nsubjs*(k-1),j], inv_logit(alpha[i] + beta[k,i]* (x[i+nsubjs*(k-1),j]/xmeanhat[k, i] - 1)));
       }
     }
   }
-}"
+}
+generated quantities {
+    vector[2*nsubjs] log_lik;
+    for (k in 1:2){
+      for (i in 1:nsubjs) {
+        for (j in 1:nstim) {
+            log_lik[i+nsubjs*(k-1)] = binomial_lpmf(r[i+nsubjs*(k-1),j]|n[i+nsubjs*(k-1),j], inv_logit(alpha[i] + beta[k,i]* (x[i+nsubjs*(k-1),j]/xmeanhat[k, i] - 1)));
+        }
+      }
+    }
+}
+"
 stanmodel6 <- stan_model(model_code = model6, model_name="stanmodel6")
+
 
 
 gm_mean = function(x, na.rm=TRUE){
@@ -289,7 +322,7 @@ runRstanModelonlocal<- function(Expdata){
   
   print(paste0('current time: ', Sys.time()))
   print(paste0('Start run rstan model ', modelname,' on ', filename))
-  RStanModel <- stanmodel123
+  RStanModel <- model123
   rprop <- {}
   x <- {}
   n <- {}
@@ -337,7 +370,7 @@ runRstanModelonlocal<- function(Expdata){
         xmean[j, i] <- (dat$curDur  %*% dat$N)/sum(dat$N)
       }else if(modelname == 'Two-stage Ensemble Mean'){#Two stage ensemble AM
         xmean[j, i] <- (dat$curDur  %*% dat$N)/sum(dat$N)
-        RStanModel <- stanmodel4
+        RStanModel <- model4
       }else if(modelname == 'Bisection Model GM'){ #simple bisection GM
         xmean[j, i] <- exp(log(max(dat$curDur))/2+ log(min(dat$curDur))/2)
       }else if(modelname == 'Spacing Model GM'){ #spacing model GM
@@ -346,10 +379,10 @@ runRstanModelonlocal<- function(Expdata){
         xmean[j, i] <- exp(sum(log(dat$curDur)*dat$N) /sum(dat$N))
       }else if(modelname == 'Two-stage Ensemble Mean GM'){ #Two stage ensemble GM
         xmean[j, i] <- exp(sum(log(dat$curDur)*dat$N) /sum(dat$N))
-        RStanModel <- stanmodel4
+        RStanModel <- model4
       }else if(modelname == 'EDA'){ #EDA AM
         xmean[j, i] <- (dat$curDur  %*% dat$N)/sum(dat$N)
-        RStanModel <- stanmodel6
+        RStanModel <- model6
         myinits <- list(
           list(alpha=rep(0, nsubjs), beta=matrix(0, 2, nsubjs),
                mua=0, mub=0, sigmaa=1, sigmab=1, sigmac=1),
@@ -357,13 +390,30 @@ runRstanModelonlocal<- function(Expdata){
                mua=0, mub=0, sigmaa=1, sigmab=1, sigmac=1))
       }else if(modelname == 'EDA GM'){ #EDA GM
         xmean[j, i] <- exp(sum(log(dat$curDur)*dat$N) /sum(dat$N))
-        RStanModel <- stanmodel6
+        RStanModel <- model6
         myinits <- list(
           list(alpha=rep(0, nsubjs), beta=matrix(0, 2, nsubjs),
                mua=0, mub=0, sigmaa=1, sigmab=1, sigmac=1),
           list(alpha=rep(0, nsubjs), beta=matrix(0, 2, nsubjs),
                mua=0, mub=0, sigmaa=1, sigmab=1, sigmac=1))
       } 
+      # else if(modelname == 'EDA'){ #EDA AM
+      #   xmean[j, i] <- (dat$curDur  %*% dat$N)/sum(dat$N)
+      #   RStanModel <- model5
+      #   myinits <- list(
+      #     list(alpha=matrix(0, 2, nsubjs), beta=matrix(0, 2, nsubjs),
+      #          mua=c(0,0), mub= c(0,0), sigmaa=c(1,1), sigmab=c(1,1), sigmac=c(1,1)),
+      #     list(alpha=matrix(0, 2, nsubjs), beta=matrix(0, 2, nsubjs),
+      #          mua=c(0,0), mub= c(0,0), sigmaa=c(1,1), sigmab=c(1,1), sigmac=c(1,1)))
+      # }else if(modelname == 'EDA GM'){ #EDA GM
+      #   xmean[j, i] <- exp(sum(log(dat$curDur)*dat$N) /sum(dat$N))
+      #   RStanModel <- model5
+      #   myinits <- list(
+      #     list(alpha=matrix(0, 2, nsubjs), beta=matrix(0, 2, nsubjs),
+      #          mua=c(0,0), mub= c(0,0), sigmaa=c(1,1), sigmab=c(1,1), sigmac=c(1,1)),
+      #     list(alpha=matrix(0, 2, nsubjs), beta=matrix(0, 2, nsubjs),
+      #          mua=c(0,0), mub= c(0,0), sigmaa=c(1,1), sigmab=c(1,1), sigmac=c(1,1)))
+      # } 
     }
   }
   
@@ -373,18 +423,38 @@ runRstanModelonlocal<- function(Expdata){
   
   parameters <- c("alpha", "beta")  # Parameters to be monitored
   
-  # calls Stan with specific options
-  samples <- sampling(RStanModel,
-                      data=data,
-                      init=myinits,
-                      #pars=parameters,
-                      iter=8000,
-                      chains=2,
-                      thin=1,
-                      seed = 12345,  # Setting seed; Default is random seed
-                      control = list(adapt_delta = 0.99, 
-                                     max_treedepth = 15)
+  # # calls Stan with specific options
+  # samples <- sampling(RStanModel,
+  #                     data=data,
+  #                     init=myinits,
+  #                     #pars=parameters,
+  #                     iter=8000,
+  #                     chains=2,
+  #                     thin=1,
+  #                     seed = 12345,  # Setting seed; Default is random seed
+  #                     control = list(adapt_delta = 0.99, 
+  #                                    max_treedepth = 15)
+  # )
+  
+  fits <- stan(model_code = RStanModel,
+               data=data,
+               init=myinits,
+               #pars=parameters,
+               iter=8000,
+               chains=2,
+               thin=1,
+               seed = 12345,  # Setting seed; Default is random seed
+               control = list(adapt_delta = 0.99, 
+                              max_treedepth = 15)
   )
+  #yrep <- posterior_predict(fits)
+  log_lik_1 <- extract_log_lik(fits)
+  loo_1 <- loo(log_lik_1)
+  #eloo_1 <- E_loo(log_lik_1)
+  #print(loo_1)
+  #waic_1 <-  waic(log_lik_1)
+  samples <- fits
+  
   
   
   # Constructing MAP-estimates and alpha/beta range
@@ -436,7 +506,19 @@ runRstanModelonlocal<- function(Expdata){
     mub1 = mean(mub[,1])
     mub2 = mub1
   }
-  
+  # else if(modelname %in% c('EDA', 'EDA GM')){
+  #   for (i in 1:nsubjs)
+  #   {
+  #     beta1[,i] <- beta[, 2*i-1]
+  #     beta2[,i] <- beta[, 2*i]
+  #     alpha1[,i] <- alpha[, 2*i-1]
+  #     alpha2[,i] <- alpha[, 2*i]
+  #   }
+  #   mua1 = mean(mua[,1])
+  #   mua2 = mean(mua[,2])
+  #   mub1 = mean(mub[,1])
+  #   mub2 = mean(mub[,2])
+  # }
   
   Beta <- list('beta1' = beta1,'beta2' = beta2)
   Alpha <- list('alpha1' = alpha1,'alpha2' = alpha2)
@@ -535,7 +617,14 @@ runRstanModelonlocal<- function(Expdata){
   }
   
   
-  #JND/PSE calculation 
+  ##JND/PSE calculation 
+  #PSE1 <- F2inv(midthreshold,c(1:nsubjs), Alpha$alpha1, Beta$beta1) + data$xmeanhat[1,]
+  #PSE2 <- F2inv(midthreshold,c(1:nsubjs), Alpha$alpha2, Beta$beta2) + data$xmeanhat[2,]
+  #JND1 <- F2inv(threshold,c(1:nsubjs), Alpha$alpha1, Beta$beta1)- F2inv(midthreshold,c(1:nsubjs), Alpha$alpha1, Beta$beta1)
+  #JND2 <- F2inv(threshold,c(1:nsubjs), Alpha$alpha2, Beta$beta2)- F2inv(midthreshold,c(1:nsubjs), Alpha$alpha2, Beta$beta2)
+  
+  
+  #JND/PSE calculation for the models in revision
   PSE1 <- F3inv(midthreshold,c(1:nsubjs), Alpha$alpha1, Beta$beta1, data$xmeanhat[1,])
   PSE2 <- F3inv(midthreshold,c(1:nsubjs), Alpha$alpha2, Beta$beta2, data$xmeanhat[2,])
   JND1 <- F3inv(threshold,c(1:nsubjs), Alpha$alpha1, Beta$beta1, data$xmeanhat[1,])- F3inv(midthreshold,c(1:nsubjs), Alpha$alpha1, Beta$beta1, data$xmeanhat[1,] )
@@ -561,10 +650,11 @@ runRstanModelonlocal<- function(Expdata){
     result$model <- modelname
     result$cond <- condlist[k]
     result$Exp <- filename
+    result$waic <- loo_1$looic
     resultList <- rbind(resultList, result)
   }
   
-  rlt <- list("mu" =mu,  "theta" = gen_theta, "data" = data, "modelname" = modelname, "exp" = filename, "result" = resultList)
+  rlt <- list("mu" = mu,  "theta" = gen_theta, "data" = data, "modelname" = modelname, "exp" = filename, "result" = resultList, "loo" = loo_1)
   #returns the model result
   return(rlt)
 }
