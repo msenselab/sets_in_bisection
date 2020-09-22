@@ -16,15 +16,15 @@ models <- c("Bisection Model",  "Spacing Model", "Ensemble Mean",  "Two-stage En
 expDat <- list(dat_exp1, dat_exp2, dat_exp3)
 
 sub_exp_dat <- list()
-  for(modelname in models) {
-    for (expID in 1: length(expDat)) {
-      data_exp <- expDat[[expID]]
-      data_exp$model <- modelname
-      data_exp$Exp <- paste0('exp', expID)
-      sub_exp <-  split(data_exp, data_exp$Exp) # split data for each subject
-      sub_exp_dat <- list.append(sub_exp_dat, sub_exp[[1]])
-    }
+for(modelname in models) {
+  for (expID in 1: length(expDat)) {
+    data_exp <- expDat[[expID]]
+    data_exp$model <- modelname
+    data_exp$Exp <- paste0('exp', expID)
+    sub_exp <-  split(data_exp, data_exp$Exp) # split data for each subject
+    sub_exp_dat <- list.append(sub_exp_dat, sub_exp[[1]])
   }
+}
 ```
 
 ```{r}
@@ -44,8 +44,8 @@ theme_new <- theme_bw() +
 if (runRstanModelslocally){
   rltlist <- list()
   for(i in 1: length(sub_exp_dat)){
-     rlt <-  runRstanModelonlocal(sub_exp_dat[[i]])
-     rltlist <- list.append(rltlist, rlt)
+    rlt <-  runRstanModelonlocal(sub_exp_dat[[i]])
+    rltlist <- list.append(rltlist, rlt)
   }
   saveRDS(rltlist, file = paste0(getwd(), "/modelling/rlt_ALL.rds"))
 }
@@ -58,16 +58,16 @@ expDat <- list(dat_exp1, dat_exp2, dat_exp3)
 ```
 
 ```{r}
-  sub_exp_dat <- list()
-  for(modelname in models) {
-    for (expID in 1: length(expDat)) {
-      data_exp <- expDat[[expID]]
-      data_exp$model <- modelname
-      data_exp$Exp <- paste0('exp', expID)
-      sub_exp <-  split(data_exp, data_exp$Exp) # split data for each subject
-      sub_exp_dat <- list.append(sub_exp_dat, sub_exp[[1]])
-    }
+sub_exp_dat <- list()
+for(modelname in models) {
+  for (expID in 1: length(expDat)) {
+    data_exp <- expDat[[expID]]
+    data_exp$model <- modelname
+    data_exp$Exp <- paste0('exp', expID)
+    sub_exp <-  split(data_exp, data_exp$Exp) # split data for each subject
+    sub_exp_dat <- list.append(sub_exp_dat, sub_exp[[1]])
   }
+}
 ```
 
 
@@ -77,8 +77,8 @@ expDat <- list(dat_exp1, dat_exp2, dat_exp3)
 if (runRstanModelslocally){
   rltlist <- list()
   for(i in 1: length(sub_exp_dat)){
-     rlt <-  runRstanModelonlocal(sub_exp_dat[[i]])
-     rltlist <- list.append(rltlist, rlt)
+    rlt <-  runRstanModelonlocal(sub_exp_dat[[i]])
+    rltlist <- list.append(rltlist, rlt)
   }
   saveRDS(rltlist, file = paste0(getwd(), "/modelling/rlt_ALL.rds"))
 }
@@ -92,14 +92,12 @@ To preprocess the model result data, we merge different model results as two csv
 AllresultList<- readRDS("modelling/rlt_ALL.rds") 
 modelresults <- {}
 thetalist <- {}
-if (needmerge == 1){
-  for(i in 1:length(AllresultList)){
-     modelresults = rbind(modelresults, AllresultList[[i]]$result) 
-     thetalist <- rbind(thetalist, AllresultList[[i]]$theta)
-  }
-  write.csv(modelresults, file.path(getwd(), "modelling/modelresults.csv"))
-  write.csv(thetalist, file.path(getwd(), "modelling/thetalist.csv"))
+for(i in 1:length(AllresultList)){
+  modelresults = rbind(modelresults, AllresultList[[i]]$result) 
+  thetalist <- rbind(thetalist, AllresultList[[i]]$theta)
 }
+write.csv(modelresults, file.path(getwd(), "modelling/modelresults.csv"))
+write.csv(thetalist, file.path(getwd(), "modelling/thetalist.csv"))
 ```
 
 ###load the data and remove the outliers
@@ -230,7 +228,7 @@ m_parcomb <- par_comb %>% dplyr::group_by(model, cond) %>%
                    waic =mean(waic),
                    distance =mean(distance)) 
 m_parcomb <- arrange(transform(m_parcomb,
-             cond=factor(cond,levels=c("PS","DF","U-shaped","NS","AF","I T-shaped"))),cond)
+                               cond=factor(cond,levels=c("PS","DF","U-shaped","NS","AF","I T-shaped"))),cond)
 head(m_parcomb%>%filter(model %in% displayModellist))
 ```
 ```{r}
@@ -250,12 +248,12 @@ for (i in 1: length(m_parcomb_list)){
   temp = m_parcomb_list[[i]]
   modelName = unique(temp$model)
   temp$model = NULL
-   colnames(temp) = c('cond', paste0('mPSE_', modelName), 'pse')
+  colnames(temp) = c('cond', paste0('mPSE_', modelName), 'pse')
   if(i == 1){
     par_model_list = temp
   }
   else{
-   temp$pse = NULL
+    temp$pse = NULL
     par_model_list = left_join(par_model_list, temp, by=c("cond"))
   }
 }
@@ -284,7 +282,7 @@ par_comb <- arrange(transform(par_comb,      cond=factor(cond,levels=c("PS","DF"
 #calculate WAIC and MSE
 mpar_comb <- par_comb %>% dplyr::group_by(model, cond) %>%
   dplyr::summarise( n=n(), mse_pse=sum((errpse)^2)/n,
-                   mse_jnd=sum((errjnd)^2)/n, m_waic = mean(waic))
+                    mse_jnd=sum((errjnd)^2)/n, m_waic = mean(waic))
 mpar_comb
 ```
 

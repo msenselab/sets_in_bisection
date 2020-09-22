@@ -15,7 +15,7 @@ source('dataana.R')
 ```
 
 ```{r}
- mDist_exp= dat_all%>% dplyr::group_by(Exp) %>%
+mDist_exp= dat_all%>% dplyr::group_by(Exp) %>%
   summarise(am_Dur = mean(curDur),
             sd_Dur = sd(curDur),
             gm_Dur = gm_mean(curDur))
@@ -59,9 +59,9 @@ sumfreq_exp1_sub1$freq <- sumfreq_exp1_sub1$count/count_exp1*100
 fig_exp1_sub1_dist <- ggplot(data=sumfreq_exp1_sub1, aes(x=curDur, y=count, fill=cond)) +
   geom_bar(stat="identity", position=position_dodge()) +
   xlab('Durations (ms)') + ylab('Counts of trials for each participant') +
-   scale_x_continuous(breaks=seq(0, 1600, 200)) +
-    scale_color_manual(values = c('gray','black')) +
-    scale_fill_manual(values = c('gray','black')) +
+  scale_x_continuous(breaks=seq(0, 1600, 200)) +
+  scale_color_manual(values = c('gray','black')) +
+  scale_fill_manual(values = c('gray','black')) +
   mytheme
 
 fig_exp1_sub1_dist
@@ -71,8 +71,8 @@ fig_exp1_sub1_dist
 ```{r}
 mDist_exp1 <-  dat_exp1 %>% filter(NSub == 1) %>% dplyr::group_by(cond) %>%
   dplyr::summarise(m_cDur = mean(curDur), n = dplyr::n(),
-            sd_Dur = sd(curDur),
-            gm_Dur = gm_mean(curDur))
+                   sd_Dur = sd(curDur),
+                   gm_Dur = gm_mean(curDur))
 mDist_exp1
 ```
 
@@ -106,8 +106,8 @@ By default, quickpsy uses cummulative normal function, this can be shown by fits
 
 ```{r fit psychometric functions Exp Spacing}
 fits_exp1 = quickpsy(dat_exp1, x = curDur, k =RP, prob = .5,
-                       grouping = .(cond, NSub), fun = logistic_fun,
-                       thresholds = FALSE)
+                     grouping = .(cond, NSub), fun = logistic_fun,
+                     thresholds = FALSE)
 head(fits_exp1$thresholds)
 ```
 ```{r}
@@ -124,7 +124,7 @@ head(par_exp1)
 
 
 ```{r}
- fits_exp1_all = quickpsy(dat_exp1, x = curDur, k =RP, prob = .5, fun = logistic_fun, grouping = .(cond))
+fits_exp1_all = quickpsy(dat_exp1, x = curDur, k =RP, prob = .5, fun = logistic_fun, grouping = .(cond))
 # plot fitted function
 plot_fit_exp1 <- plot(fits_exp1_all) +  
   labs(x = "Durations (ms)", y = "Proportion of 'Long' responses") +
@@ -228,7 +228,7 @@ plot_jnd_exp1 <- ggplot(mpars_exp1,aes(cond, m_jnd, color = cond, fill = cond))+
   geom_bar(stat='identity') + 
   geom_errorbar(aes(ymin = m_jnd - jnd_se, ymax = m_jnd + jnd_se), width =0.5) +
   labs(x = " ", y = "Mean JND (ms)") +
-   geom_signif(comparisons=list(c("PS", "NS")), annotations= "*", y_position = 300, tip_length = 0, vjust=0.4, color = 'black') +
+  geom_signif(comparisons=list(c("PS", "NS")), annotations= "*", y_position = 300, tip_length = 0, vjust=0.4, color = 'black') +
   coord_cartesian(ylim = c(0,400))+
   scale_color_manual(values = c('gray','black')) +
   scale_fill_manual(values = c('gray','black')) + theme(legend.position = "none")
@@ -359,7 +359,7 @@ head(par_exp2)
 
 ```{r}
 fits_exp2_all = quickpsy(dat_exp2, x = curDur, k =RP, prob = .5,fun = logistic_fun,
-                           grouping = .(cond))
+                         grouping = .(cond))
 # plot fitted function
 plot_fit_exp2 <- plot(fits_exp2_all) + 
   labs(x = "Durations (ms)", y = "Proportion of 'Long' responses") +
@@ -563,9 +563,9 @@ plot_mDist_exp3
 
 ```{r fit psychometric functions Exp3}
 fits_exp3 = quickpsy(dat_exp3, x = curDur, k =RP, prob = .5,
-                       grouping = .(cond, NSub), 
-                       fun = logistic_fun,
-                       thresholds = FALSE)
+                     grouping = .(cond, NSub), 
+                     fun = logistic_fun,
+                     thresholds = FALSE)
 head(fits_exp3$thresholds)
 ```
 
@@ -582,7 +582,7 @@ head(par_exp3)
 
 ```{r}
 fits_exp3_all = quickpsy(dat_exp3, x = curDur, k =RP, prob = .5, fun = logistic_fun,
-                           grouping = .(cond), thresholds = FALSE)
+                         grouping = .(cond), thresholds = FALSE)
 # plot fitted function
 plot_fit_exp3 <- plot(fits_exp3_all) +  
   labs(x = "Durations (ms)", y = "Proportion of 'Long' responses") +
@@ -780,7 +780,7 @@ plot_grid(fig_exp1_sub1_dist2, fig_exp2_sub1_dist_2, fig_exp3_sub1_dist2,  ncol 
 ## plot Figure 2 in manuscript
 
 ```{r}
- plot_grid(plot_fit_exp1, plot_pse_exp1_box, plot_jnd_exp1_box,  nrow = 1, labels = c("A", "B", "C"), rel_widths = c(4,3,3))
+plot_grid(plot_fit_exp1, plot_pse_exp1_box, plot_jnd_exp1_box,  nrow = 1, labels = c("A", "B", "C"), rel_widths = c(4,3,3))
 ```
 
 ## plot Figure 3 in manuscript

@@ -7,19 +7,14 @@ library(rlist)
 library(ggpubr)
 library(gtools)
 library(reshape)
-#library(rstanarm)
 library(loo)
 
 
 # Setting
 options(mc.cores = parallel::detectCores())
 rstan_options (auto_write=TRUE)
-# flag for merge model results 
-needmerge= 1
-# flag for running rstan model and saving the results
-runRstanModels = FALSE
 # flag for running rstan model locally
-runRstanModelslocally = FALSE
+runRstanModelslocally = TRUE
 
 threshold = 0.75
 #threshold = 0.84
