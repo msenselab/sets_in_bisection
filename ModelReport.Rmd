@@ -131,17 +131,6 @@ m_thetalist[which(m_thetalist$model %in% c( "EDA", "EDA GM")), "numParam"] = 10
 m_thetalist$err_prob = m_thetalist$Prob- m_thetalist$obser_prob
 ```
 
-```{r}
-#calculate AIC and BIC
-mm_thetalist <- m_thetalist %>% dplyr::group_by(model, cond) %>%
-  dplyr::summarise(sumerrprob=sum((err_prob)^2), n=n(), numParam = mean(numParam)) %>% 
-  dplyr::group_by(model,cond) %>%
-  summarise(aicProb= 2 * numParam +  n*log(sumerrprob/n),
-            bicProb = n*log(sumerrprob/n) + numParam*log(n))  %>% 
-  group_by(model) %>%
-  summarise(m_aicProb = mean(aicProb), m_bicProb = mean(bicProb)) 
-mm_thetalist
-```
 
 ### prediction of PSE and JND
 ```{r}
@@ -149,8 +138,12 @@ mm_thetalist
 par_comb = left_join(modelresults, par_observed, by = c('NSub', 'cond')) 
 par_comb$errpse <- par_comb$PSEmap-par_comb$pse
 par_comb$errjnd <- par_comb$JNDmap-par_comb$jnd
+par_comb$distance = sqrt(par_comb$errpse^2 + par_comb$errjnd^2)
 head(par_comb)
 ```
+
+
+
 
 ### compare the predicated results with the GM and AM
 
@@ -190,8 +183,6 @@ ggplot(par_comb %>% filter(model %in% displayModellist), aes(errpse, errjnd, col
   geom_point() +
   xlab('Prediction error in the PSEs (ms)')+
   ylab('Prediction error in the JNDs (ms)')+
-  #scale_color_manual(values = cbp1) +
-  #scale_shape_manual(values=c(0, 1, 2, 8, 16))+
   facet_wrap(~cond)+
   theme_new+ theme(legend.position = 'top')
 ```
@@ -222,18 +213,70 @@ ggplot(par_comb %>% filter(model %in% displayModellist), aes(errpse, errjnd, col
   theme_new+ theme(legend.position = 'top')
 ```
 
+
+### calculate distance to the observed Pses and Jnds
+```{r}
+m_parcomb <- par_comb %>% dplyr::group_by(model, cond) %>%
+  dplyr::summarise(mPSEmap=mean(PSEmap),
+                   pse = mean(pse), 
+                   mJNDmap=mean(JNDmap),
+                   jnd = mean(jnd),
+                   merrpse =mean(errpse), 
+                   merrjnd = mean(errjnd),n=n(), 
+                   PSEmap_se = sd(PSEmap)/sqrt(n-1), 
+                   JNDmap_se = sd(JNDmap)/sqrt(n-1),
+                   errpse_se =sd(errpse)/sqrt(n-1), 
+                   errjnd_se =sd(errjnd)/sqrt(n-1),
+                   waic =mean(waic),
+                   distance =mean(distance)) 
+m_parcomb <- arrange(transform(m_parcomb,
+             cond=factor(cond,levels=c("PS","DF","U-shaped","NS","AF","I T-shaped"))),cond)
+head(m_parcomb%>%filter(model %in% displayModellist))
+```
+```{r}
+mm_parcomb <- m_parcomb %>% dplyr::group_by(model) %>%
+  dplyr::summarise(m_distance = mean(distance), waic = mean(waic))　 
+mm_parcomb
+```
+
+
+###  Calculate the relative mean difference of two predictions of PSEs using AM and GM
+
+```{r}
+m_parcomb_new <- m_parcomb %>% dplyr::select(1:4)
+m_parcomb_list <-split(m_parcomb_new, m_parcomb_new$model) 
+par_model_list = NULL
+for (i in 1: length(m_parcomb_list)){
+  temp = m_parcomb_list[[i]]
+  modelName = unique(temp$model)
+  temp$model = NULL
+   colnames(temp) = c('cond', paste0('mPSE_', modelName), 'pse')
+  if(i == 1){
+    par_model_list = temp
+  }
+  else{
+   temp$pse = NULL
+    par_model_list = left_join(par_model_list, temp, by=c("cond"))
+  }
+}
+par_model_list$rmd_bisection =  abs(par_model_list$`mPSE_Bisection Model`-par_model_list$`mPSE_Bisection Model GM`)/par_model_list$pse
+par_model_list$rmd_Spacing =  abs(par_model_list$`mPSE_Spacing Model`-par_model_list$`mPSE_Spacing Model GM`)/par_model_list$pse
+par_model_list$rmd_Ensemble =  abs(par_model_list$`mPSE_Ensemble Mean`-par_model_list$`mPSE_Ensemble Mean GM`)/par_model_list$pse
+par_model_list$rmd_Two_stage =  abs(par_model_list$`mPSE_Two-stage Ensemble Mean`-par_model_list$`mPSE_Two-stage Ensemble Mean GM`)/par_model_list$pse
+par_model_list$rmd_EDA =  abs(par_model_list$`mPSE_EDA`-par_model_list$`mPSE_EDA GM`)/par_model_list$pse
+#max(par_model_list$rmd_bisection ), max(par_model_list$rmd_Spacing), max(par_model_list$rmd_Ensemble),
+max(  max(par_model_list$rmd_Two_stage), max(par_model_list$rmd_EDA))
+```
+
+
+
 ### Display model results using arithmetic mean
 ```{r}
 displayModellist <- c("Bisection Model",  "Spacing Model", "Ensemble Mean",  "Two-stage Ensemble Mean", "EDA")
 par_comb <- par_comb %>% 
   filter(model %in% displayModellist)
 par_comb<- arrange(transform(par_comb , model = factor(model, levels = displayModellist)), model)
-par_comb <- arrange(transform(par_comb,
-                              cond=factor(cond,levels=c("PS","DF","U-shaped","NS","AF","I T-shaped"))),cond)
-
-# par_comb$numParam = 6
-# par_comb[which(par_comb$model %in% c("Two-stage Ensemble Mean","Two-stage Ensemble Mean GM" )), "numParam"] = 9
-# par_comb[which(par_comb$model %in% c( "EDA", "EDA GM")), "numParam"] = 10
+par_comb <- arrange(transform(par_comb,      cond=factor(cond,levels=c("PS","DF","U-shaped","NS","AF","I T-shaped"))),cond)
 ```
 
 
@@ -242,13 +285,7 @@ par_comb <- arrange(transform(par_comb,
 mpar_comb <- par_comb %>% dplyr::group_by(model, cond) %>%
   dplyr::summarise( n=n(), mse_pse=sum((errpse)^2)/n,
                    mse_jnd=sum((errjnd)^2)/n, m_waic = mean(waic))
-
-### show the mean in each model 
-m_par <- modelresults %>% group_by(model, cond, NSub) %>%
-  summarise(xmean= mean(xmean), xmeanhat= mean(xmeanhat))  %>%
-  group_by(model, cond) %>%
-  summarise(xmean= mean(xmean), xmeanhat= mean(xmeanhat)) 
-m_par
+mpar_comb
 ```
 
 
@@ -270,30 +307,21 @@ plt_ErrorScatter
 ```
 
 
-
 ## plot figure 6 in manuscript
-```{r}
-m_parcomb <- par_comb %>% dplyr::group_by(model, cond) %>%
-  dplyr::summarise(mPSEmap=mean(PSEmap),
-                   pse = mean(pse), 
-                   mJNDmap=mean(JNDmap),
-                   jnd = mean(jnd),
-                   merrpse =mean(errpse), 
-                   merrjnd = mean(errjnd),n=n(), 
-                   PSEmap_se = sd(PSEmap)/sqrt(n-1), 
-                   JNDmap_se = sd(JNDmap)/sqrt(n-1),
-                   errpse_se =sd(errpse)/sqrt(n-1), 
-                   errjnd_se =sd(errjnd)/sqrt(n-1),
-                   waic =mean(waic)) 
 
+```{r}
 m_par_observed <- par_observed %>% dplyr::group_by(cond) %>%
   dplyr::summarise(mpse=mean(pse), mjnd= mean(jnd), n=n(), 
                    pse_se =sd(pse)/sqrt(n-1), jnd_se =sd(jnd)/sqrt(n-1)) 
 m_par_observed$mPSEmap<-m_par_observed$mpse 
 m_par_observed$mJNDmap<-m_par_observed$mjnd 
+```
 
-m_parcomb2 <- arrange(transform(m_parcomb,
-             cond=factor(cond,levels=c("PS","DF","U-shaped","NS","AF","I T-shaped"))),cond)
+```{r}
+
+m_parcomb2 <- m_parcomb %>% 
+  filter(model %in% displayModellist)
+m_parcomb2<- arrange(transform(m_parcomb2 , model = factor(model, levels = displayModellist)), model)
 
 
 fig_estimation = ggplot(m_parcomb2, aes(x=mPSEmap, y=mJNDmap, color = model, shape = model)) + 
@@ -313,11 +341,5 @@ ggsave(paste0("figures/fig6.png"), fig_estimation, width = 9, height=6)
 fig_estimation
 ```
 
-calculate distance to the observed Pses and Jnds
-```{r}
-m_parcomb2$distance = sqrt((m_parcomb2$mPSEmap -m_parcomb2$pse)^2 +(m_parcomb2$mJNDmap -m_parcomb2$jnd)^2)
-mm_parcomb2 <- m_parcomb2 %>% dplyr::group_by(model) %>%
-  dplyr::summarise(m_distance = mean(distance), waic = mean(waic))　 
-head(mm_parcomb2)
-```
+
 
