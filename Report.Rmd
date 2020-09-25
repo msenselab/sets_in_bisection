@@ -23,7 +23,7 @@ mDist_exp
 ```
 
 ```{r}
-mDist <-  dat_all %>% dplyr::group_by(NSub, Exp) %>%
+mDist <-  dat_all %>% dplyr::group_by(NSub, cond, Exp) %>%
   summarise(m_cDur = mean(curDur), n = dplyr::n(),
             sd_Dur = sd(curDur),
             gm_Dur = gm_mean(curDur),
@@ -187,6 +187,7 @@ exp1_jasp <- par_exp1%>%
   separate(`NS`, c("NSC_pse", "NSC_jnd","NSC_slope"), sep = "_")
 
 exp1_jasp
+write.csv(exp1_jasp, file = "jasp/exp1_jasp.csv")
 ```
 
 
@@ -405,6 +406,7 @@ exp2_jasp <- par_exp2%>%
   separate(AF, c("AF_pse", "AF_jnd", "AF_slope"), sep = "_")
 
 exp2_jasp
+write.csv(exp2_jasp, file = "jasp/exp2_jasp.csv")
 ```
 
 
@@ -621,6 +623,7 @@ exp3_jasp <- par_exp3%>%
   separate(`I T-shaped`, c("B_pse", "B_jnd", "B_slope"), sep = "_")
 
 exp3_jasp
+write.csv(exp3_jasp, file = "jasp/exp3_jasp.csv")
 ```
 
 

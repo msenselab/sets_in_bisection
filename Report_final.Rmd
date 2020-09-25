@@ -1,0 +1,796 @@
+---
+title: "Temporal bisection is influenced by ensemble statistics of the stimulus set (Data Analysis Report)"
+author: "Xiuna Zhu"
+date: "12 Februar 2019"
+output:
+  html_document:
+    df_print: paged
+  html_notebook: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE)
+source('dataana.R')
+```
+
+```{r}
+mDist_exp= dat_all%>% dplyr::group_by(Exp) %>%
+  summarise(am_Dur = mean(curDur),
+            sd_Dur = sd(curDur),
+            gm_Dur = gm_mean(curDur))
+mDist_exp
+```
+
+```{r}
+mDist <-  dat_all %>% dplyr::group_by(NSub, Exp) %>%
+  summarise(m_cDur = mean(curDur), n = dplyr::n(),
+            sd_Dur = sd(curDur),
+            gm_Dur = gm_mean(curDur),
+            cDur_se = sd(curDur)/sqrt(n-1))
+mDist
+```
+
+
+
+# Experiment 1 (Spacing Effect)
+
+Two spacing condition will be tested in Experiment Spacing.
+
+positive skew condition (400, 504, 636, 800, 1008, 1270, and 1600 ms)
+
+negative skew condition (400, 730, 992, 1200, 1366, 1496, and 1600 ms)
+
+twice of the intervals used in paper (Stimulus spacing effects in duration perception are larger for auditory stimuli: data and a model).
+
+
+The arithmetic mean of set PS = 0.8883, geometric mean = 800, sd =  401; and arithmetic mean of set NS = 1.1120, geometric mean = 1018, sd =  402. 
+
+
+## Range Frequency Theory
+
+To understand the pattern of results concerning schifts in the temporal bisection point, We have to check the distribution of stimuli within the sets firstly. 
+
+
+```{r}
+sumfreq_exp1_sub1 <-  dat_exp1 %>% filter(NSub == 1) %>% group_by(cond, curDur) %>% summarise(count = n())
+count_exp1 <- sum(sumfreq_exp1_sub1$count)/2
+sumfreq_exp1_sub1$freq <- sumfreq_exp1_sub1$count/count_exp1*100
+fig_exp1_sub1_dist <- ggplot(data=sumfreq_exp1_sub1, aes(x=curDur, y=count, fill=cond)) +
+  geom_bar(stat="identity", position=position_dodge()) +
+  xlab('Durations (ms)') + ylab('Counts of trials for each participant') +
+  scale_x_continuous(breaks=seq(0, 1600, 200)) +
+  scale_color_manual(values = c('gray','black')) +
+  scale_fill_manual(values = c('gray','black')) +
+  mytheme
+
+fig_exp1_sub1_dist
+```
+
+## plot the distribution of stimulus set
+```{r}
+mDist_exp1 <-  dat_exp1 %>% filter(NSub == 1) %>% dplyr::group_by(cond) %>%
+  dplyr::summarise(m_cDur = mean(curDur), n = dplyr::n(),
+                   sd_Dur = sd(curDur),
+                   gm_Dur = gm_mean(curDur))
+mDist_exp1
+```
+
+```{r}
+plot_mDist_exp1 <- ggplot(mDist_exp1,aes(cond, m_cDur, color = cond, fill = cond))+
+  geom_bar(stat='identity') +
+  geom_errorbar(aes(ymin = m_cDur - sd_Dur, ymax = m_cDur + sd_Dur), width =0.5) +
+  labs(x = " ", y = "Mean of Durations (ms)") +
+  #coord_cartesian(ylim = c(0,1400))+
+  scale_color_manual(values = c('gray','black')) +
+  scale_fill_manual(values = c('gray','black')) +
+  theme(legend.position = "none", legend.title = element_blank())+
+  theme(panel.grid.major=element_line(colour=NA))+
+  theme(axis.text.y = element_text(size=26,colour = "black"),
+        axis.text.x   = element_text(size=26, colour = "black"),
+        axis.title.y  = element_text(size=26, colour = "black"),
+        axis.title.x  = element_text(size=26, colour = "black"),
+        panel.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.line = element_line(colour = "black"))
+
+plot_mDist_exp1
+```
+
+
+
+## fit psychometric functions
+
+By default, quickpsy uses cummulative normal function, this can be shown by fits_exp$funname. With cummulative normal function, the second parameter p2 is the sigma, which defines JND as between 50%-84%. We use logistic function for calculating JND as 75%, so we need to specify this function in quickpsy. 
+
+```{r fit psychometric functions Exp Spacing}
+fits_exp1 = quickpsy(dat_exp1, x = curDur, k =RP, prob = .5,
+                     grouping = .(cond, NSub), fun = logistic_fun,
+                     thresholds = FALSE)
+head(fits_exp1$thresholds)
+```
+```{r}
+par_exp1 <-fits_exp1$par %>%  dplyr::select(cond, NSub, parn, par) %>%
+  pivot_wider(names_from = parn, values_from = par) %>% 
+  mutate(jnd = log(3)/p2)
+par_exp1$pse <- par_exp1$p1
+par_exp1$p1 <-  NULL
+par_exp1$p2 <-  NULL
+head(par_exp1)
+```
+
+
+
+
+```{r}
+fits_exp1_all = quickpsy(dat_exp1, x = curDur, k =RP, prob = .5, fun = logistic_fun, grouping = .(cond))
+# plot fitted function
+plot_fit_exp1 <- plot(fits_exp1_all) +  
+  labs(x = "Durations (ms)", y = "Proportion of 'Long' responses") +
+  scale_color_manual(values = c('gray','black')) +
+  scale_fill_manual(values = c('gray','black')) +
+  theme(legend.position = c(0.7, 0.2), legend.title = element_blank())
+
+plot_fit_exp1
+```
+
+
+=======
+##slope
+From the equation of psychometric fuction (PF), we can easily obtained the point of subjective equality (PSE, $\alpha$) and just noticeable difference (JND). Notice, the JND is defined by the difference between thresholds P=0.5 and P=0.75, so we have 
+$$JND = log3/ \beta$$
+Therefore, 
+
+$$\beta = 3 / e^{JND} $$
+```{r}
+exp1_all_thres<- fits_exp1_all$thresholds
+exp1_all_thres$slope = 3/exp(exp1_all_thres$thre/1000) #slope
+exp1_all_thres
+```
+
+
+```{r}
+exp1_thres<- fits_exp1$thresholds
+exp1_thres$slope = 3/exp(exp1_thres$thre/1000) #slope
+exp1_thres
+```
+
+
+
+## list all of the parameter for each subjects
+```{r fitted paramters exp1}
+par_exp1$slope = 3/exp(par_exp1$jnd/1000) #slope
+
+mpars_exp1 = par_exp1%>% 
+  group_by(cond) %>%
+  summarise(m_pse = mean(pse), 
+            m_jnd = mean(jnd),  
+            m_slope = mean(slope), 
+            n = n(),
+            pse_se = sd(pse)/sqrt(n-1), 
+            jnd_se = sd(jnd)/sqrt(n-1),
+            slope_se = sd(slope)/sqrt(n-1)) 
+
+mpars_exp1
+```
+
+=======
+##Export for JASP
+
+List all of the parameters for exp1 and export data for JASP
+```{r}
+exp1_jasp <- par_exp1%>% 
+  unite(pse.jnd.slope, pse, jnd, slope)%>%
+  spread(cond, pse.jnd.slope)%>%
+  separate(`PS`, c("PSC_pse", "PSC_jnd","PSC_slope"), sep = "_")%>%
+  separate(`NS`, c("NSC_pse", "NSC_jnd","NSC_slope"), sep = "_")
+
+exp1_jasp
+```
+
+
+
+## plot PSE
+```{r}
+plot_pse_exp1 <- ggplot(mpars_exp1,aes(cond, m_pse, color = cond, fill = cond))+
+  geom_bar(stat='identity') + 
+  geom_errorbar(aes(ymin = m_pse - pse_se, ymax = m_pse + pse_se), width =0.5) +
+  geom_signif(comparisons=list(c("PS", "NS")), annotations="***", y_position = 1150, tip_length = 0, vjust=0.4, color = 'black') +
+  labs(x = " ", y = "Mean PSE (ms)") +
+  coord_cartesian(ylim = c(0,1300)) +
+  scale_color_manual(values = c('gray','black')) +
+  scale_fill_manual(values = c('gray','black')) +
+  theme(legend.position = "none")
+
+plot_pse_exp1
+```
+
+```{r}
+plot_pse_exp1_box <- ggplot(par_exp1,aes(x=cond, y=pse, color = cond))+
+  geom_boxplot() + 
+  geom_jitter(position=position_jitter(0.2))+
+  geom_signif(comparisons=list(c("PS", "NS")), annotations="***", y_position = 1350, tip_length = 0, vjust=0.4, color = 'black') +
+  labs(x = " ", y = "Mean PSE (ms)") +
+  coord_cartesian(ylim = c(500,1400)) +
+  scale_color_manual(values = c('gray','black')) +
+  scale_fill_manual(values = c('gray','black')) +
+  theme(legend.position = "none")
+
+plot_pse_exp1_box
+```
+
+
+
+## plot JND
+```{r}
+plot_jnd_exp1 <- ggplot(mpars_exp1,aes(cond, m_jnd, color = cond, fill = cond))+
+  geom_bar(stat='identity') + 
+  geom_errorbar(aes(ymin = m_jnd - jnd_se, ymax = m_jnd + jnd_se), width =0.5) +
+  labs(x = " ", y = "Mean JND (ms)") +
+  geom_signif(comparisons=list(c("PS", "NS")), annotations= "*", y_position = 300, tip_length = 0, vjust=0.4, color = 'black') +
+  coord_cartesian(ylim = c(0,400))+
+  scale_color_manual(values = c('gray','black')) +
+  scale_fill_manual(values = c('gray','black')) + theme(legend.position = "none")
+
+plot_jnd_exp1
+```
+
+
+```{r}
+plot_jnd_exp1_box <- ggplot(par_exp1,aes(x=cond, y=jnd, color = cond))+
+  geom_boxplot() + 
+  geom_jitter(position=position_jitter(0.2))+
+  labs(x = " ", y = "Mean JND (ms)") +
+  geom_signif(comparisons=list(c("PS", "NS")), annotations= "*", y_position = 235, tip_length = 0, vjust=0.4, color = 'black') +
+  coord_cartesian(ylim = c(0,250))+
+  scale_color_manual(values = c('gray','black')) +
+  scale_fill_manual(values = c('gray','black')) + theme(legend.position = "none")
+
+plot_jnd_exp1_box
+```
+
+
+
+
+## plot Slope
+```{r}
+plot_slope_exp1 <- ggplot(mpars_exp1,aes(cond, m_slope, color = cond, fill = cond))+
+  geom_bar(stat='identity') + 
+  geom_errorbar(aes(ymin = m_slope - slope_se, ymax = m_slope + slope_se), width =0.5) +
+  labs(x = "Exp 1", y = "Mean Slope") +
+  coord_cartesian(ylim = c(0,3))+
+  scale_color_manual(values = c('gray','black')) +
+  scale_fill_manual(values = c('gray','black'))  +mytheme
+
+plot_slope_exp1
+```
+
+## ANOVA and T-test
+
+```{r}
+Anova_exp1_pse<- ezANOVA(data = par_exp1, dv= pse, wid=NSub, within=.(cond))
+Anova_exp1_pse
+```
+
+```{r}
+Anova_exp1_jnd<- ezANOVA(data = par_exp1, dv= jnd, wid=NSub, within=.(cond))
+Anova_exp1_jnd
+```
+
+
+```{r}
+Anova_exp1_slope<- ezANOVA(data = par_exp1, dv= slope, wid=NSub, within=.(cond))
+Anova_exp1_slope
+```
+
+# Experiment 2
+
+## Range Frequency Theory
+
+A particular focus is the distribution of stimuli within the sets to be judged.  To understand the pattern of results concerning schifts in the temporal bisection point, We have to check the frequency of the sets firstly. 
+
+
+```{r}
+sumfreq_exp2_sub1 <-  dat_exp2 %>% filter(NSub == 1) %>% group_by(cond, curDur) %>% summarise(count = n()) 
+count_exp2 <- sum(sumfreq_exp2_sub1$count)/2
+sumfreq_exp2_sub1$freq <- sumfreq_exp2_sub1$count/count_exp2*100
+fig_exp2_sub1_dist <- ggplot(data=sumfreq_exp2_sub1, aes(x=curDur, y=count, fill=cond)) +
+  geom_bar(stat="identity", position=position_dodge()) + 
+  xlab('Durations (ms)') + ylab('Counts of trials for each participant') +
+  scale_x_continuous(breaks=seq(0, 1600, 200)) +
+  scale_color_manual(values = c('gray','black')) +
+  scale_fill_manual(values = c('gray','black')) +mytheme
+
+fig_exp2_sub1_dist
+```
+
+```{r}
+mDist_exp2 <-  dat_exp2 %>% filter(NSub == 1) %>% dplyr::group_by(cond) %>%
+  summarise(m_cDur = mean(curDur), n = dplyr::n(),
+            sd_Dur = sd(curDur),
+            gm_Dur = gm_mean(curDur))
+mDist_exp2
+```
+
+```{r}
+plot_mDist_exp2 <- ggplot(mDist_exp2,aes(cond, m_cDur, color = cond, fill = cond))+
+  geom_bar(stat='identity') +
+  geom_errorbar(aes(ymin = m_cDur - sd_Dur, ymax = m_cDur + sd_Dur), width =0.5) +
+  #geom_text(aes(label=paste("(",m_cDur,",",round(sd_Dur),")") ),size=8, hjust=0.5, vjust=-2, color = 'black')+
+  labs(x = " ", y = " ") +
+  #coord_cartesian(ylim = c(0,1600))+
+  scale_color_manual(values = c('gray','black')) +
+  scale_fill_manual(values = c('gray','black')) +
+  theme(legend.position = "none", legend.title = element_blank())+
+  theme(panel.grid.major=element_line(colour=NA))+
+  theme(axis.text.y = element_text(size=26,colour = "black"),
+        axis.text.x   = element_text(size=26, colour = "black"),
+        axis.title.y  = element_text(size=26, colour = "black"),
+        axis.title.x  = element_text(size=26, colour = "black"),
+        panel.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.line = element_line(colour = "black")
+  )
+
+plot_mDist_exp2
+```
+
+
+
+
+## Fit psychometric functions
+```{r fit psychometric functions Exp2}
+fits_exp2 = quickpsy(dat_exp2, x = curDur, k =RP, prob = .5, grouping = .(cond, NSub), fun = logistic_fun, thresholds = FALSE)
+head(fits_exp2$thresholds)
+```
+
+```{r}
+par_exp2 <- fits_exp2$par %>%  dplyr::select(cond, NSub, parn, par) %>%
+  pivot_wider(names_from = parn, values_from = par) %>% 
+  mutate(jnd = log(3)/p2)
+par_exp2$pse <-  par_exp2$p1
+par_exp2$p1 <-  NULL
+par_exp2$p2 <-  NULL
+head(par_exp2)
+```
+
+
+```{r}
+fits_exp2_all = quickpsy(dat_exp2, x = curDur, k =RP, prob = .5,fun = logistic_fun,
+                         grouping = .(cond))
+# plot fitted function
+plot_fit_exp2 <- plot(fits_exp2_all) + 
+  labs(x = "Durations (ms)", y = "Proportion of 'Long' responses") +
+  scale_color_manual(values = c('gray','black')) +
+  scale_fill_manual(values = c('gray','black')) +
+  theme(legend.position = c(0.7, 0.2), legend.title = element_blank())
+
+
+plot_fit_exp2
+```
+
+
+## Average fitted paramters and plot
+
+```{r list all of the parameter for each subjects}
+par_exp2$slope = 3/exp(par_exp2$pse/1000) #add slope
+
+par_exp2
+```
+
+```{r}
+mpse_exp2 = par_exp2%>% 
+  group_by(cond) %>%
+  summarise(m_pse = mean(pse), 
+            m_jnd = mean(jnd), 
+            m_slope = mean(slope), 
+            n = n(),
+            pse_se = sd(pse)/sqrt(n-1), 
+            jnd_se = sd(jnd)/sqrt(n-1),
+            slope_se = sd(slope)/sqrt(n-1)) 
+
+mpse_exp2
+```
+
+##  Export for JASP
+
+List all of the parameters for Exp2 and export data for JASP
+```{r}
+exp2_jasp <- par_exp2%>% 
+  unite(pse.jnd.slope, pse, jnd, slope)%>%
+  spread(cond, pse.jnd.slope)%>%
+  separate(DF, c("DF_pse", "DF_jnd","DF_slope"), sep = "_")%>%
+  separate(AF, c("AF_pse", "AF_jnd", "AF_slope"), sep = "_")
+
+exp2_jasp
+```
+
+
+## plot PSE
+
+```{r}
+plot_pse_exp2 <- ggplot(mpse_exp2,aes(cond, m_pse, color = cond, fill = cond))+
+  geom_bar(stat='identity') + 
+  geom_errorbar(aes(ymin = m_pse - pse_se, ymax = m_pse + pse_se), width =0.5) +
+  geom_signif(comparisons=list(c("DF", "AF")), annotations="***", y_position = 1250, tip_length = 0, vjust=0.4, color = 'black') +
+  labs(x = " ", y = "Mean PSE (ms)") +
+  coord_cartesian(ylim = c(0,1300))+
+  scale_color_manual(values = c('gray','black')) +
+  scale_fill_manual(values = c('gray','black')) +
+  theme(legend.position = "none")
+
+plot_pse_exp2
+```
+
+```{r}
+plot_pse_exp2_box <- ggplot(par_exp2,aes(x=cond, y=pse, color = cond))+
+  geom_boxplot() + 
+  geom_jitter(position=position_jitter(0.2))+
+  geom_signif(comparisons=list(c("DF", "AF")), annotations="***", y_position = 1450, tip_length = 0, vjust=0.4, color = 'black') +
+  labs(x = " ", y = "Mean PSE (ms)") +
+  coord_cartesian(ylim = c(500,1500))+
+  scale_color_manual(values = c('gray','black')) +
+  scale_fill_manual(values = c('gray','black')) +
+  theme(legend.position = "none")
+
+plot_pse_exp2_box
+```
+
+## plot JND
+```{r}
+plot_jnd_exp2 <- ggplot(mpse_exp2,aes(cond, m_jnd, color = cond, fill = cond))+
+  geom_bar(stat='identity') + 
+  geom_errorbar(aes(ymin = m_jnd - jnd_se, ymax = m_jnd + jnd_se), width =0.5) +
+  geom_signif(comparisons=list(c("DF", "AF")), annotations="***", y_position = 210, tip_length = 0, vjust=0.4, color = 'black') +
+  labs(x = " ", y = "Mean JND (ms)") +
+  coord_cartesian(ylim = c(0,250))+
+  scale_color_manual(values = c('gray','black')) +
+  scale_fill_manual(values = c('gray','black')) +
+  theme(legend.position = "none")
+
+plot_jnd_exp2
+```
+
+```{r}
+plot_jnd_exp2_box <- ggplot(par_exp2,aes(x=cond, y=jnd, color = cond))+
+  geom_boxplot() + 
+  geom_jitter(position=position_jitter(0.2)) +
+  geom_signif(comparisons=list(c("DF", "AF")), annotations="**", y_position = 240, tip_length = 0, vjust=0.4, color = 'black') +
+  labs(x = " ", y = "Mean JND (ms)") +
+  coord_cartesian(ylim = c(0,250))+
+  scale_color_manual(values = c('gray','black')) +
+  scale_fill_manual(values = c('gray','black')) +
+  theme(legend.position = "none")
+plot_jnd_exp2_box
+```
+
+
+
+## plot Slope
+```{r}
+plot_slope_exp2 <- ggplot(mpse_exp2,aes(cond, m_slope, color = cond, fill = cond))+
+  geom_bar(stat='identity') + 
+  geom_errorbar(aes(ymin = m_slope - slope_se, ymax = m_slope + slope_se), width =0.5) +
+  coord_cartesian(ylim = c(0,3))+
+  labs(x = "Exp 2", y = "Mean Slope") +
+  scale_color_manual(values = c('gray','black')) +
+  scale_fill_manual(values = c('gray','black')) +
+  theme(legend.position = "none", legend.title = element_blank())
+
+plot_slope_exp2
+```
+
+## ANOVA 
+
+```{r}
+Anova_exp2_pse <- ezANOVA(data = par_exp2, dv= pse, wid=NSub, within=.(cond))
+Anova_exp2_pse
+```
+
+
+```{r}
+Anova_exp2_jnd <- ezANOVA(data = par_exp2, dv= jnd, wid=NSub, within=.(cond))
+Anova_exp2_jnd
+```
+
+
+```{r}
+Anova_exp2_slope <- ezANOVA(data = par_exp2, dv= slope, wid=NSub, within=.(cond))
+Anova_exp2_slope
+```
+
+# Experiment 3
+
+Two distributions (a normal and a U-shaped distribution) will be tested in Experiment 3.
+It is designed to use 8 intervals (400, 550, 700, 850, 1000, 1150, 1300, and 1450 ms) in Experiment 3.
+
+## Range Frequency Theory
+
+To understand the pattern of results concerning schifts in the temporal bisection point, We have to check the distribution of stimuli within the sets firstly. 
+```{r}
+sumfreq_exp3_sub1 <-  dat_exp3 %>% filter(NSub ==1) %>% group_by(cond, curDur) %>% summarise(count = n()) 
+count_exp3 <- sum(sumfreq_exp3_sub1$count)/2
+sumfreq_exp3_sub1$freq <- sumfreq_exp3_sub1$count/count_exp3*100
+
+fig_exp3_sub1_dist <- ggplot(data=sumfreq_exp3_sub1, aes(x=curDur, y=freq, fill=cond)) +
+  geom_bar(stat="identity", position=position_dodge()) + 
+  #geom_smooth(method="loess",se = FALSE)+
+  xlab('Durations (ms)') + ylab('Counts of trials for each participant') +
+  scale_x_continuous(breaks=seq(0, 1600, 200)) +
+  scale_color_manual(values = c('gray','black')) +
+  scale_fill_manual(values = c('gray','black')) +mytheme
+
+fig_exp3_sub1_dist
+```
+
+
+
+```{r}
+mDist_exp3 <-  dat_exp3 %>% filter(NSub == 1) %>% dplyr::group_by(cond) %>%
+  summarise(m_cDur = mean(curDur), n = dplyr::n(),
+            sd_Dur = sd(curDur),
+            gm_Dur = gm_mean(curDur))
+mDist_exp3
+```
+
+```{r}
+plot_mDist_exp3 <- ggplot(mDist_exp3,aes(cond, m_cDur, color = cond, fill = cond))+
+  geom_bar(stat='identity') +
+  geom_errorbar(aes(ymin = m_cDur - sd_Dur, ymax = m_cDur + sd_Dur), width =0.5) +
+  labs(x = " ", y = " ") +
+  #coord_cartesian(ylim = c(0,1200))+
+  scale_color_manual(values = c('gray','black')) +
+  scale_fill_manual(values = c('gray','black')) +
+  theme(legend.position = "none", legend.title = element_blank())+
+  theme(panel.grid.major=element_line(colour=NA))+
+  theme(axis.text.y = element_text(size=26,colour = "black"),
+        axis.text.x   = element_text(size=26, colour = "black"),
+        axis.title.y  = element_text(size=26, colour = "black"),
+        axis.title.x  = element_text(size=26, colour = "black"),
+        panel.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.line = element_line(colour = "black"))
+
+plot_mDist_exp3
+```
+
+
+## Fit psychometric functions
+
+
+```{r fit psychometric functions Exp3}
+fits_exp3 = quickpsy(dat_exp3, x = curDur, k =RP, prob = .5,
+                     grouping = .(cond, NSub), 
+                     fun = logistic_fun,
+                     thresholds = FALSE)
+head(fits_exp3$thresholds)
+```
+
+```{r}
+par_exp3 <- fits_exp3$par %>%  dplyr::select(cond, NSub, parn, par) %>%
+  pivot_wider(names_from = parn, values_from = par) %>% 
+  mutate(jnd = log(3)/p2)
+par_exp3$pse <-  par_exp3$p1
+par_exp3$p1 <- NULL
+par_exp3$p2 <-NULL
+head(par_exp3)
+```
+
+
+```{r}
+fits_exp3_all = quickpsy(dat_exp3, x = curDur, k =RP, prob = .5, fun = logistic_fun,
+                         grouping = .(cond), thresholds = FALSE)
+# plot fitted function
+plot_fit_exp3 <- plot(fits_exp3_all) +  
+  labs(x = "Durations (ms)", y = "Proportion of 'Long' responses") +
+  scale_color_manual(values = c('gray','black')) +
+  scale_fill_manual(values = c('gray','black')) +
+  theme(legend.position = c(0.7, 0.2), legend.title = element_blank())
+
+plot_fit_exp3
+```
+
+
+
+## List all of the parameter for each subjects
+
+
+```{r}
+par_exp3$slope = 3/exp(par_exp3$pse/1000) #add slope
+
+mpars_exp3 = par_exp3%>% 
+  group_by(cond) %>%
+  summarise(m_pse = mean(pse), m_jnd = mean(jnd), m_slope = mean(slope), n = n(),pse_se = sd(pse)/sqrt(n-1), jnd_se = sd(jnd)/sqrt(n-1),slope_se = sd(slope)/sqrt(n-1))
+
+mpars_exp3
+
+```
+
+
+##Export for JASP
+
+List all of the parameters for Exp3 and export data for JASP
+```{r}
+exp3_jasp <- par_exp3%>% 
+  unite(pse.jnd.slope, pse, jnd, slope)%>%
+  spread(cond, pse.jnd.slope)%>%
+  separate(`U-shaped`, c("U_pse", "U_jnd", "U_slope"), sep = "_")%>%
+  separate(`I T-shaped`, c("B_pse", "B_jnd", "B_slope"), sep = "_")
+
+exp3_jasp
+```
+
+
+## plot PSE
+```{r}
+plot_pse_exp3 <- ggplot(mpars_exp3,aes(cond, m_pse, color = cond, fill = cond))+
+  geom_bar(stat='identity') + 
+  geom_errorbar(aes(ymin = m_pse - pse_se, ymax = m_pse + pse_se), width =0.5) +
+  coord_cartesian(ylim = c(0,1300)) +
+  #geom_signif(comparisons=list(c("U-shaped", "I T-shaped")), annotations="ns", y_position = 1100, tip_length = 0, vjust=0.4, color = 'black') +
+  labs(x = " ", y = "Mean PSE (ms)") +
+  scale_color_manual(values = c('gray','black')) +
+  scale_fill_manual(values = c('gray','black')) +
+  theme(legend.position = "none", legend.title = element_blank())
+
+
+plot_pse_exp3
+```
+
+```{r}
+plot_pse_exp3_box <- ggplot(par_exp3,aes(x=cond, y=pse, color = cond))+
+  geom_boxplot() + 
+  geom_jitter(position=position_jitter(0.2))+
+  coord_cartesian(ylim = c(500,1300)) +
+  labs(x = " ", y = "Mean PSE (ms)") +
+  scale_color_manual(values = c('gray','black')) +
+  scale_fill_manual(values = c('gray','black')) +
+  theme(legend.position = "none", legend.title = element_blank())
+
+plot_pse_exp3_box
+```
+
+## plot JND
+```{r}
+plot_jnd_exp3 <- ggplot(mpars_exp3,aes(cond, m_jnd, color = cond, fill = cond))+
+  geom_bar(stat='identity') + 
+  geom_errorbar(aes(ymin = m_jnd - jnd_se, ymax = m_jnd + jnd_se), width =0.5) +
+  coord_cartesian(ylim = c(0,300))+
+  geom_signif(comparisons=list(c("U-shaped", "I T-shaped")), annotations="**", y_position = 250, tip_length = 0, vjust=0.4, color = 'black') +
+  labs(x = " ", y = "Mean JND (ms)") +
+  scale_color_manual(values = c('gray','black')) +
+  scale_fill_manual(values = c('gray','black')) +
+  theme(legend.position = "none")
+
+plot_jnd_exp3
+```
+
+
+
+```{r}
+plot_jnd_exp3_box <- ggplot(par_exp3,aes(x=cond, y=jnd, color = cond))+
+  geom_boxplot() + 
+  geom_jitter(position=position_jitter(0.2))+
+  coord_cartesian(ylim = c(0,280))+
+  geom_signif(comparisons=list(c("U-shaped", "I T-shaped")), annotations="**", y_position = 250, tip_length = 0, vjust=0.4, color = 'black') +
+  labs(x = " ", y = "Mean JND (ms)") +
+  scale_color_manual(values = c('gray','black')) +
+  scale_fill_manual(values = c('gray','black')) +
+  theme(legend.position = "none")
+
+plot_jnd_exp3_box
+```
+
+## plot Slope
+```{r}
+plot_slope_exp3 <- ggplot(mpars_exp3,aes(cond, m_slope, color = cond, fill = cond))+
+  geom_bar(stat='identity') + 
+  geom_errorbar(aes(ymin = m_slope - slope_se, ymax = m_slope + slope_se), width =0.5) +
+  coord_cartesian(ylim = c(0,3))+
+  labs(x = "Exp 3", y = "Mean Slope") +
+  scale_color_manual(values = c('gray','black')) +
+  scale_fill_manual(values = c('gray','black')) +
+  theme(legend.position = "none", legend.title = element_blank())
+
+plot_slope_exp3
+```
+
+## ANOVA
+
+```{r}
+Anova_exp3_pse<- ezANOVA(data = par_exp3, dv= pse, wid=NSub, within=.(cond))
+Anova_exp3_pse
+```
+
+
+
+```{r}
+Anova_exp3_jnd<- ezANOVA(data = par_exp3, dv= jnd, wid=NSub, within=.(cond))
+Anova_exp3_jnd
+```
+
+
+
+```{r}
+Anova_exp3_slope<- ezANOVA(data = par_exp3, dv= slope, wid=NSub, within=.(cond))
+Anova_exp3_slope
+```
+
+
+
+#### Export the observed paratmeters for model comprision
+```{r}
+#merge parameters of experiment 1,2 and 3
+par_exp <- rbind(par_exp1, par_exp2)
+par_exp <- rbind(par_exp, par_exp3)
+write.csv(par_exp, 'modelling/psy_quickpsy_observed.csv')
+head(par_exp)
+```
+
+
+```{r}
+prob_exp <- rbind(fits_exp1$averages,  fits_exp2$averages)
+prob_exp <- rbind(prob_exp,   fits_exp3$averages)
+write.csv(prob_exp, 'modelling/prob_exp.csv')
+head(prob_exp)
+```
+
+
+## plot figure 1 in manuscript
+
+```{r}
+fig_exp1_sub1_dist2 <- ggplot(data=sumfreq_exp1_sub1, aes(x=curDur, y=freq, fill=cond, color = cond)) +
+  geom_bar(stat="identity", position=position_dodge(),width = 3) + 
+  geom_point()+
+  xlab('') + ylab('Prob. (%)') +
+  scale_x_continuous(breaks=seq(0, 1600, 200)) +
+  scale_y_continuous(breaks=seq(0, 50, 5)) +
+  scale_color_manual(values = c('gray','black')) +
+  scale_fill_manual(values = c('gray','black')) +
+  theme(legend.position = "none", legend.title = element_blank()) + facet_wrap(~cond)
+
+fig_exp2_sub1_dist_2 <- ggplot(data=sumfreq_exp2_sub1, aes(x=curDur, y=freq, fill=cond, color = cond)) +
+  geom_bar(stat="identity", position=position_dodge(), width = 3) + 
+  geom_point()+
+  scale_x_continuous(breaks=seq(0, 1600, 200)) +
+  scale_y_continuous(breaks=seq(0, 50, 10)) +
+  xlab('') + ylab('Prob. (%)') +
+  scale_color_manual(values = c('gray','black')) +
+  scale_fill_manual(values = c('gray','black')) +
+  theme(legend.position = 'none', legend.title = element_blank()) + facet_wrap(~cond)
+
+fig_exp3_sub1_dist2 <- ggplot(data=sumfreq_exp3_sub1, aes(x=curDur, y=freq, fill=cond, color = cond)) +
+  geom_bar(stat="identity", position=position_dodge(), width = 3) + 
+  geom_point()+
+  xlab('Durations (ms)') + ylab('Prob. (%)') +
+  scale_x_continuous(breaks=seq(0, 1600, 200)) +
+  scale_y_continuous(breaks=seq(0, 50, 10)) +
+  scale_color_manual(values = c('gray','black')) +
+  scale_fill_manual(values = c('gray','black')) +
+  theme(legend.position = "none", legend.title = element_blank())+ facet_wrap(~cond)
+
+plot_grid(fig_exp1_sub1_dist2, fig_exp2_sub1_dist_2, fig_exp3_sub1_dist2,  ncol = 1, labels = c("A", "B", "C"), rel_heights = c(3,3,3))
+```
+
+
+
+## plot Figure 2 in manuscript
+
+```{r}
+plot_grid(plot_fit_exp1, plot_pse_exp1_box, plot_jnd_exp1_box,  nrow = 1, labels = c("A", "B", "C"), rel_widths = c(4,3,3))
+```
+
+## plot Figure 3 in manuscript
+
+```{r}
+plot_grid(plot_fit_exp2, plot_pse_exp2_box, plot_jnd_exp2_box,  nrow = 1, labels = c("A", "B", "C"), rel_widths = c(4,3,3))
+```
+
+## plot Figure 4 in manuscript
+```{r}
+plot_grid(plot_fit_exp3, plot_pse_exp3, plot_jnd_exp3,  nrow = 1, labels = c("A", "B", "C"), rel_widths = c(4,3,3))
+```
+
