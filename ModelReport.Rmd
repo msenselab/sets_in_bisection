@@ -2,7 +2,9 @@
 title: "ModelReport"
 author: "Xiuna Zhu"
 date: "9/20/2020"
-output: html_document
+output:
+  html_document: default
+  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -142,76 +144,6 @@ head(par_comb)
 
 
 
-
-### compare the predicated results with the GM and AM
-
-```{r}
-displayModellist <- c('Bisection Model','Bisection Model GM')
-
-ggplot(par_comb %>% filter(model %in% displayModellist), aes(errpse, errjnd, color = model, shape = model)) + 
-  geom_hline(yintercept = 0, linetype='dashed')+ geom_vline(xintercept = 0, linetype='dashed')+ 
-  geom_point() +
-  xlab('Prediction error in the PSEs (ms)')+
-  ylab('Prediction error in the JNDs (ms)')+
-  #scale_color_manual(values = cbp1) +
-  #scale_shape_manual(values=c(0, 1, 2, 8, 16))+
-  facet_wrap(~cond)+
-  theme_new+ theme(legend.position = 'top')
-```
-
-```{r}
-displayModellist <- c('Spacing Model','Spacing Model GM')
-
-ggplot(par_comb %>% filter(model %in% displayModellist), aes(errpse, errjnd, color = model, shape = model)) + 
-  geom_hline(yintercept = 0, linetype='dashed')+ geom_vline(xintercept = 0, linetype='dashed')+ 
-  geom_point() +
-  xlab('Prediction error in the PSEs (ms)')+
-  ylab('Prediction error in the JNDs (ms)')+
-  #scale_color_manual(values = cbp1) +
-  #scale_shape_manual(values=c(0, 1, 2, 8, 16))+
-  facet_wrap(~cond)+
-  theme_new+ theme(legend.position = 'top')
-```
-
-```{r}
-displayModellist <- c('Ensemble Mean','Ensemble Mean GM')
-
-ggplot(par_comb %>% filter(model %in% displayModellist), aes(errpse, errjnd, color = model, shape = model)) + 
-  geom_hline(yintercept = 0, linetype='dashed')+ geom_vline(xintercept = 0, linetype='dashed')+ 
-  geom_point() +
-  xlab('Prediction error in the PSEs (ms)')+
-  ylab('Prediction error in the JNDs (ms)')+
-  facet_wrap(~cond)+
-  theme_new+ theme(legend.position = 'top')
-```
-```{r}
-displayModellist <- c('Two-stage Ensemble Mean','Two-stage Ensemble Mean GM')
-
-ggplot(par_comb %>% filter(model %in% displayModellist), aes(errpse, errjnd, color = model, shape = model)) + 
-  geom_hline(yintercept = 0, linetype='dashed')+ geom_vline(xintercept = 0, linetype='dashed')+ 
-  geom_point() +
-  xlab('Prediction error in the PSEs (ms)')+
-  ylab('Prediction error in the JNDs (ms)')+
-  #scale_color_manual(values = cbp1) +
-  #scale_shape_manual(values=c(0, 1, 2, 8, 16))+
-  facet_wrap(~cond)+
-  theme_new+ theme(legend.position = 'top')
-```
-```{r}
-displayModellist <- c('EDA','EDA GM')
-
-ggplot(par_comb %>% filter(model %in% displayModellist), aes(errpse, errjnd, color = model, shape = model)) + 
-  geom_hline(yintercept = 0, linetype='dashed')+ geom_vline(xintercept = 0, linetype='dashed')+ 
-  geom_point() +
-  xlab('Prediction error in the PSEs (ms)')+
-  ylab('Prediction error in the JNDs (ms)')+
-  #scale_color_manual(values = cbp1) +
-  #scale_shape_manual(values=c(0, 1, 2, 8, 16))+
-  facet_wrap(~cond)+
-  theme_new+ theme(legend.position = 'top')
-```
-
-
 ### calculate distance to the observed Pses and Jnds
 ```{r}
 m_parcomb <- par_comb %>% dplyr::group_by(model, cond) %>%
@@ -229,7 +161,7 @@ m_parcomb <- par_comb %>% dplyr::group_by(model, cond) %>%
                    distance =mean(distance)) 
 m_parcomb <- arrange(transform(m_parcomb,
                                cond=factor(cond,levels=c("PS","DF","U-shaped","NS","AF","I T-shaped"))),cond)
-head(m_parcomb%>%filter(model %in% displayModellist))
+head(m_parcomb)
 ```
 ```{r}
 mm_parcomb <- m_parcomb %>% dplyr::group_by(model) %>%

@@ -14,7 +14,7 @@ library(loo)
 options(mc.cores = parallel::detectCores())
 rstan_options (auto_write=TRUE)
 # flag for running rstan model locally
-runRstanModelslocally = TRUE
+runRstanModelslocally = FALSE
 
 threshold = 0.75
 #threshold = 0.84
@@ -65,9 +65,6 @@ model123 <- "
   }
 "
 
-# compile models
-stanmodel123 <- stan_model(model_code = model123, model_name="stanmodel123")
-
 
 ### model number 4 "Two-stage Ensemble Mean model"
 model4 <- "
@@ -117,7 +114,6 @@ generated quantities {
     }
   }
 "
-stanmodel4 <- stan_model(model_code = model4, model_name="stanmodel4")
 
 
 ### model number 5  EDA
@@ -168,8 +164,6 @@ generated quantities {
     }
   }
 "
-# compile models
-stanmodel5 <- stan_model(model_code = model5, model_name="stanmodel5")
 
 
 ### model number 6  EDA (less variables)
@@ -221,8 +215,6 @@ generated quantities {
     }
 }
 "
-stanmodel6 <- stan_model(model_code = model6, model_name="stanmodel6")
-
 
 
 gm_mean = function(x, na.rm=TRUE){
