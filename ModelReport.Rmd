@@ -232,7 +232,9 @@ plt_ErrorScatter = ggplot(par_comb, aes(errpse, errjnd, color = model, shape = m
   facet_wrap(~cond)+
   theme_new+ theme(legend.position = 'top')
 
-ggsave(paste0("figures/fig7.png"), plt_ErrorScatter, width = 9, height=6)
+#ggsave(paste0("figures/fig7.png"), plt_ErrorScatter, width = 9, height=6)
+ggsave("figures/fig7.tiff", units="in", width=9, height=6, dpi=300, compression = 'lzw')
+
 plt_ErrorScatter
 ```
 
@@ -267,8 +269,10 @@ fig_estimation = ggplot(m_parcomb2, aes(x=mPSEmap, y=mJNDmap, color = model, sha
   facet_wrap(.~cond,  ncol=3)+
   scale_size(guide = 'none')
 
-ggsave(paste0("figures/fig6.png"), fig_estimation, width = 9, height=6)
+#ggsave("figures/fig6.png", fig_estimation, width = 9, height=6)
+ggsave("figures/fig6.tiff", units="in", width=9, height=6, dpi=300, compression = 'lzw')
 fig_estimation
+
 ```
 
 

@@ -775,7 +775,9 @@ fig_exp3_sub1_dist2 <- ggplot(data=sumfreq_exp3_sub1, aes(x=curDur, y=freq, fill
   scale_fill_manual(values = c('gray','black')) +
   theme(legend.position = "none", legend.title = element_blank())+ facet_wrap(~cond)
 
-plot_grid(fig_exp1_sub1_dist2, fig_exp2_sub1_dist_2, fig_exp3_sub1_dist2,  ncol = 1, labels = c("A", "B", "C"), rel_heights = c(3,3,3))
+fig1 <- plot_grid(fig_exp1_sub1_dist2, fig_exp2_sub1_dist_2, fig_exp3_sub1_dist2,  ncol = 1, labels = c("A", "B", "C"), rel_heights = c(3,3,3))
+
+ggsave("figures/fig1.tiff", units="in", width=6, height=4, dpi=300, compression = 'lzw')
 ```
 
 
@@ -783,17 +785,20 @@ plot_grid(fig_exp1_sub1_dist2, fig_exp2_sub1_dist_2, fig_exp3_sub1_dist2,  ncol 
 ## plot Figure 2 in manuscript
 
 ```{r}
-plot_grid(plot_fit_exp1, plot_pse_exp1_box, plot_jnd_exp1_box,  nrow = 1, labels = c("A", "B", "C"), rel_widths = c(4,3,3))
+fig2 <- plot_grid(plot_fit_exp1, plot_pse_exp1_box, plot_jnd_exp1_box,  nrow = 1, labels = c("A", "B", "C"), rel_widths = c(4,3,3))
+ggsave("figures/fig2.tiff", units="in", width=6, height=4, dpi=300, compression = 'lzw')
 ```
 
 ## plot Figure 3 in manuscript
 
 ```{r}
 plot_grid(plot_fit_exp2, plot_pse_exp2_box, plot_jnd_exp2_box,  nrow = 1, labels = c("A", "B", "C"), rel_widths = c(4,3,3))
+ggsave("figures/fig3.tiff", units="in", width=6, height=4, dpi=300, compression = 'lzw')
 ```
 
 ## plot Figure 4 in manuscript
 ```{r}
 plot_grid(plot_fit_exp3, plot_pse_exp3, plot_jnd_exp3,  nrow = 1, labels = c("A", "B", "C"), rel_widths = c(4,3,3))
+ggsave("figures/fig4.tiff", units="in", width=6, height=4, dpi=300, compression = 'lzw')
 ```
 
